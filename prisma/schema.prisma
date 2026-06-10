@@ -1,0 +1,88 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  passwordHash String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  collection   UserSticker[]
+  initiated    Trade[]       @relation("TradeInitiator")
+  received     Trade[]       @relation("TradeReceiver")
+
+  @@map("users")
+}
+
+model Sticker {
+  id          String       @id
+  albumNumber Int          @unique
+  code        String
+  position    Int
+  name        String
+  country     String
+  isFoil      Boolean      @default(false)
+  isTeamLogo  Boolean      @default(false)
+  isTeamPhoto Boolean      @default(false)
+  isSpecial   Boolean      @default(false)
+  imagePath   String?
+  createdAt   DateTime     @default(now())
+  userStickers UserSticker[]
+  tradeItems   TradeItem[]
+
+  @@index([code])
+  @@map("stickers")
+}
+
+model UserSticker {
+  id         String   @id @default(cuid())
+  userId     String
+  stickerId  String
+  ownedQty   Int      @default(0)
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sticker    Sticker  @relation(fields: [stickerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, stickerId])
+  @@index([userId])
+  @@map("user_stickers")
+}
+
+model Trade {
+  id               String      @id @default(cuid())
+  initiatorId      String
+  receiverId       String
+  status           String      @default("PENDING")
+  message          String?
+  initiatorApplied Boolean     @default(false)
+  receiverApplied  Boolean     @default(false)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  initiator        User        @relation("TradeInitiator", fields: [initiatorId], references: [id])
+  receiver         User        @relation("TradeReceiver", fields: [receiverId], references: [id])
+  items            TradeItem[]
+
+  @@index([initiatorId])
+  @@index([receiverId])
+  @@map("trades")
+}
+
+model TradeItem {
+  id        String  @id @default(cuid())
+  tradeId   String
+  stickerId String
+  direction String
+  quantity  Int     @default(1)
+  trade     Trade   @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  sticker   Sticker @relation(fields: [stickerId], references: [id])
+
+  @@index([tradeId])
+  @@map("trade_items")
+}

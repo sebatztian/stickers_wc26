@@ -1,0 +1,22 @@
+node_modules
+.next
+.env
+.env.local
+
+# Prisma generated client
+/src/generated/
+
+# Database files
+*.db
+*.db-journal
+
+# Downloaded images (served via Wikimedia URLs instead)
+/data/pictures/
+
+# Scraper outputs
+/scripts/.venv/
+/data/scraper.log
+/data/missing_images.jsonl
+/data/missing_logos.jsonl
+/data/missing_image_urls.jsonl
+/data/image_urls.json
