@@ -3,9 +3,14 @@ import * as path from "path";
 import { config } from "dotenv";
 config({ path: ".env.local", override: true });
 config({ path: ".env" });
+import { neonConfig } from "@neondatabase/serverless";
+import { PrismaNeon } from "@prisma/adapter-neon";
+import ws from "ws";
 import { PrismaClient } from "../src/generated/prisma/client";
 
-const prisma = new PrismaClient();
+neonConfig.webSocketConstructor = ws;
+const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL });
+const prisma = new PrismaClient({ adapter });
 
 const CORRECTIONS: Record<string, string> = {
   SWI9: "SUI9",
