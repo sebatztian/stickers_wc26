@@ -30,8 +30,14 @@ export function TopNav({ user }: Props) {
       <div className="container mx-auto px-4 max-w-7xl flex items-center justify-between h-14">
         <Link
           href="/collection"
-          className="font-display text-2xl font-bold text-panini-gold tracking-wider hover:text-panini-gold-lt transition-colors"
+          className="flex items-center gap-2.5 font-display text-2xl font-bold text-panini-gold tracking-wider hover:text-panini-gold-lt transition-colors"
         >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="https://upload.wikimedia.org/wikipedia/commons/2/2c/2026_FIFA_World_Cup_emblem_%28with_wordmark%29.svg"
+            alt="2026 FIFA World Cup emblem"
+            className="h-9 w-auto"
+          />
           PANINI WC26
         </Link>
 

@@ -29,6 +29,12 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="https://upload.wikimedia.org/wikipedia/commons/e/e5/2026_FIFA_World_Cup_emblem_%28without_trophy%29.svg"
+            alt="2026 FIFA World Cup emblem"
+            className="mx-auto mb-4 h-32 w-auto"
+          />
           <h1 className="font-display text-5xl font-bold text-panini-gold tracking-wide">
             PANINI WC 2026
           </h1>
