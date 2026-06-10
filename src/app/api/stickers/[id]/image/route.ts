@@ -57,7 +57,9 @@ export async function GET(
     }
   }
 
+  // Do NOT cache the placeholder: once an image URL is added for this sticker,
+  // the next request should pick it up instead of serving a stale placeholder.
   return new NextResponse(PLACEHOLDER_SVG, {
-    headers: { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=3600" },
+    headers: { "Content-Type": "image/svg+xml", "Cache-Control": "no-store" },
   });
 }
