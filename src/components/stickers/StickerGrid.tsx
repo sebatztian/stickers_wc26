@@ -5,7 +5,6 @@ import { TeamFilter } from "./TeamFilter";
 import { StickerThumbnail } from "./StickerThumbnail";
 import { StickerDetailModal } from "./StickerDetailModal";
 import { setOwned } from "@/lib/actions/collection";
-import { COUNTRY_NAMES } from "@/lib/constants";
 import type { Sticker, UserSticker } from "@/generated/prisma/client";
 
 interface Props {
@@ -92,12 +91,8 @@ export function StickerGrid({ stickers, initialUserStickers }: Props) {
     });
 
     if (sortMode === "alpha") {
-      // Group teams alphabetically by country name; keep album order within a team
-      result.sort((a, b) => {
-        const an = COUNTRY_NAMES[a.code] ?? a.country ?? a.code;
-        const bn = COUNTRY_NAMES[b.code] ?? b.country ?? b.code;
-        return an.localeCompare(bn) || a.albumNumber - b.albumNumber;
-      });
+      // Group teams alphabetically by abbreviation (e.g. ESP); keep album order within a team
+      result.sort((a, b) => a.code.localeCompare(b.code) || a.albumNumber - b.albumNumber);
     }
 
     return result;

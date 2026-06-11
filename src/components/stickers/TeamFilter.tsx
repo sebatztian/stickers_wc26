@@ -12,9 +12,7 @@ interface TeamFilterProps {
 export function TeamFilter({ selected, onChange, sortMode = "album" }: TeamFilterProps) {
   const teamCodes = useMemo(() => {
     if (sortMode === "alpha") {
-      return [...TEAM_CODES].sort((a, b) =>
-        (COUNTRY_NAMES[a] ?? a).localeCompare(COUNTRY_NAMES[b] ?? b)
-      );
+      return [...TEAM_CODES].sort((a, b) => a.localeCompare(b));
     }
     return TEAM_CODES;
   }, [sortMode]);
