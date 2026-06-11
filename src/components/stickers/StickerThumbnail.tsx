@@ -34,7 +34,9 @@ export function StickerThumbnail({
     <button
       onClick={onClick}
       className={`group relative sticker-card w-full aspect-[3/4] bg-gradient-to-b from-panini-blue/80 to-panini-navy overflow-hidden transition-all ${
-        owned ? "ring-2 ring-panini-gold/70 shadow-[0_0_8px_rgba(240,180,41,0.35)]" : "ring-1 ring-panini-blue/20"
+        owned
+          ? "ring-[3px] ring-panini-gold-lt shadow-[0_0_0_1px_var(--color-panini-gold),0_0_12px_2px_rgba(255,209,102,0.55)] z-10"
+          : "ring-1 ring-panini-blue/20"
       }`}
     >
       {isFoil && (

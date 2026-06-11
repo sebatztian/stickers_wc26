@@ -13,14 +13,16 @@ interface RankedUser {
   uniqueCount: number;
   totalCount: number;
   duplicateCount: number;
+  isMe: boolean;
 }
 
 interface Props {
   myId: string;
   users: RankedUser[];
+  totalStickers: number;
 }
 
-export function TradeComparison({ users }: Props) {
+export function TradeComparison({ users, totalStickers }: Props) {
   const router = useRouter();
   const [theirId, setTheirId] = useState("");
   const [search, setSearch] = useState("");
@@ -71,30 +73,65 @@ export function TradeComparison({ users }: Props) {
           {filteredUsers.map((u) => {
             const isSelected = u.id === theirId;
             const rank = users.indexOf(u) + 1;
+            const pct = totalStickers > 0 ? Math.round((u.uniqueCount / totalStickers) * 100) : 0;
+
+            const inner = (
+              <>
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`font-display font-bold text-sm w-6 shrink-0 text-center ${
+                      u.isMe ? "text-panini-gray" : rank <= 3 ? "text-panini-gold" : "text-panini-gray"
+                    }`}
+                  >
+                    {rank}
+                  </span>
+                  <span className="flex-1 text-panini-white font-medium truncate">
+                    {u.name}
+                    {u.isMe && <span className="text-panini-gray font-normal ml-1.5">(You)</span>}
+                  </span>
+                  <span className="text-emerald-400 text-xs font-bold tabular-nums">
+                    {u.uniqueCount} <span className="text-panini-gray font-normal">unique</span>
+                  </span>
+                  <span className="text-panini-gray text-xs tabular-nums hidden sm:inline">
+                    {u.totalCount} total · {u.duplicateCount} dupes
+                  </span>
+                </div>
+                {/* Completion bar */}
+                <div className="flex items-center gap-2 mt-1.5 pl-9">
+                  <div className="h-1.5 flex-1 bg-panini-blue/20 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-panini-gold to-panini-gold-lt rounded-full"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <span className="text-panini-gray text-[10px] tabular-nums w-8 text-right">{pct}%</span>
+                </div>
+              </>
+            );
+
+            if (u.isMe) {
+              return (
+                <div
+                  key={u.id}
+                  title="This is you"
+                  className="w-full px-3 py-2 rounded-lg bg-panini-navy/40 opacity-50 cursor-default"
+                >
+                  {inner}
+                </div>
+              );
+            }
+
             return (
               <button
                 key={u.id}
                 onClick={() => handleCompare(u.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                className={`w-full px-3 py-2 rounded-lg text-left transition-colors ${
                   isSelected
                     ? "bg-panini-gold/20 ring-1 ring-panini-gold/50"
                     : "bg-panini-navy/40 hover:bg-panini-blue/20"
                 }`}
               >
-                <span
-                  className={`font-display font-bold text-sm w-6 shrink-0 text-center ${
-                    rank <= 3 ? "text-panini-gold" : "text-panini-gray"
-                  }`}
-                >
-                  {rank}
-                </span>
-                <span className="flex-1 text-panini-white font-medium truncate">{u.name}</span>
-                <span className="text-emerald-400 text-xs font-bold tabular-nums">
-                  {u.uniqueCount} <span className="text-panini-gray font-normal">unique</span>
-                </span>
-                <span className="text-panini-gray text-xs tabular-nums hidden sm:inline">
-                  {u.totalCount} total · {u.duplicateCount} dupes
-                </span>
+                {inner}
               </button>
             );
           })}

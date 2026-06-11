@@ -15,11 +15,13 @@ A personal web app for me and my friends to register, track, and trade Panini st
 | Framework      | Next.js 16 (App Router)     | React 19, SSR + Server Actions                  |
 | Language       | TypeScript 5 (strict)       | No `any` unless truly necessary                 |
 | Styling        | Tailwind CSS v4             | Theme via `@theme` in `globals.css`; Panini palette |
-| Database       | SQLite (via Prisma 6)       | File: `panini_wc26.db`; swap for Postgres later |
-| ORM            | Prisma 6                    | Generated client at `src/generated/prisma/`     |
-| Auth           | NextAuth.js v4              | Credentials provider (email + bcrypt password)  |
+| Database       | PostgreSQL (Neon serverless)| Prisma 6 with `@prisma/adapter-neon` over Neon's WebSocket driver |
+| ORM            | Prisma 6                    | `engineType = "client"` (WASM queryCompiler, **no native engine**); client at `src/generated/prisma/` |
+| Auth           | NextAuth.js v4              | Credentials provider (**unique name** + bcrypt password — no email) |
+| Hosting        | Vercel                      | Auto-deploy on push to `main`; env vars set in Vercel dashboard |
+| Images         | Wikimedia URLs              | Stored in `Sticker.imagePath`; image route 302-redirects — no local image storage |
 | Package Mgr    | pnpm 11                     | `pnpm-workspace.yaml` for build script allow-list |
-| Scraper        | Python 3 (requests)         | `scripts/scrape_images.py` — Wikipedia API      |
+| Scraper        | Python 3 (requests)         | Wikipedia API — see Image Pipeline below        |
  
 ---
  
@@ -41,31 +43,40 @@ src/
     stickers/       # Sticker-specific components
     trades/         # Trade-specific components
   lib/              # Shared utilities, constants, helpers
-    db.ts           # Prisma client singleton
+    db.ts           # Prisma client singleton (instantiated with the Neon adapter)
     constants.ts    # Sticker data, team lists, groups
     utils.ts        # Pure helper functions
   hooks/            # Custom React hooks
   types/            # Shared TypeScript types & interfaces
 prisma/
   schema.prisma     # Database schema
+  seed.ts           # Seeds 980 stickers from data/stickers_list.txt
+  migrations/       # SQL migrations (Postgres)
+scripts/
+  fetch_all_image_urls.py   # Resolve Wikimedia image URLs → data/image_urls.json (no downloads)
+  fetch_team_logos.py       # Federation/association logo URLs for team-logo stickers
+  import_image_urls.ts      # Write data/image_urls.json into Sticker.imagePath
+  check_image_urls.ts       # Diagnostic: count populated imagePaths in the DB
 data/
-  stickers_list.txt  # List of all Stickers and their respective description (i.e. player name - country)
-  pictures/
-    ALG/
-      ALG1    # picture of player fetched by taking the first accessible photo when checking the sticker description
-      ...
-    ...
+  stickers_list.txt  # List of all Stickers and their description (i.e. player name - country)
+  image_urls.json    # Generated map { stickerId: wikimediaUrl } (gitignored)
 
 ```
+
+Images are **not** stored in the repo. Each sticker's `imagePath` holds a
+Wikimedia URL; `GET /api/stickers/[id]/image` redirects to it (or returns an
+uncached placeholder SVG when no URL is set).
  
 Do not deviate from this structure without updating the table above.
  
 ### Data Modeling Guidelines
  
 - Every sticker has a unique identifier following the real Panini numbering scheme (e.g. `FWC 1`, `GER 5`).
-- Users have a **collection** (stickers they own) and a **wishlist** (stickers they need).
-- A user can own duplicates — track quantity, not just presence.
-- A **trade** is a proposal from one user to another: "I give you stickers X, Y; you give me A, B." It has a status: `pending → accepted | rejected | cancelled`.
+- Users have a **collection** (stickers they own, with quantity). **There is no wishlist** — any sticker a user does not own (`ownedQty = 0`) is implicitly "needed".
+- A user can own duplicates — track quantity, not just presence. A duplicate is `ownedQty > 1`.
+- A **trade** is a proposal from one user to another: "I give you stickers X, Y; you give me A, B." Either side may be empty (a one-way **gift** or **wish request**). Status: `PENDING → ACCEPTED | REJECTED | CANCELLED`.
+- Trade matches exclude stickers already committed in a `PENDING`/`ACCEPTED` trade between the two users (only a `CANCELLED` trade frees them again).
+- When a trade is `ACCEPTED`, each party can apply it once to their collection (`initiatorApplied` / `receiverApplied` flags) to move the stickers.
 ### API & Data Fetching
  
 - Use Next.js Server Actions or Route Handlers for mutations.
@@ -85,9 +96,21 @@ Do not deviate from this structure without updating the table above.
  
 ## Development Workflow
  
+- Local env lives in `.env.local` (gitignored): `DATABASE_URL` (Neon pooled), `DIRECT_URL` (Neon direct, used by migrations), `NEXTAUTH_SECRET`, `NEXTAUTH_URL`. See `.env.example`.
 - Run `pnpm dev` for local development.
-- Run `pnpm prisma migrate dev` after any schema change.
+- After a schema change: write the migration SQL and apply with **`pnpm prisma migrate deploy`** (the sandboxed/non-interactive environment cannot run `migrate dev`), then `pnpm prisma generate`.
 - Run `pnpm lint` and `pnpm typecheck` before committing. Fix all errors — do not suppress with `eslint-disable` or `@ts-ignore` unless there is a documented reason.
+
+## Image Pipeline
+
+1. `scripts/.venv/bin/python scripts/fetch_all_image_urls.py` — resolve Wikimedia URLs into `data/image_urls.json` (resumable, saves after each hit). `fetch_team_logos.py` does the same for team-logo stickers (federation → association → team query order).
+2. `pnpm tsx scripts/import_image_urls.ts` — write those URLs into `Sticker.imagePath` in the DB. Safe to re-run; no redeploy needed (the image route reads `imagePath` at request time).
+
+## Deployment (Vercel + Neon)
+
+- Push to `main` → Vercel auto-builds (`prisma generate && next build`).
+- Vercel env vars: `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`.
+- The Neon adapter + `engineType = "client"` means **no native Prisma engine binary** is bundled — the WASM queryCompiler ships base64-embedded in JS, which is what makes serverless deploys work. Do not revert to the default (library) engine.
 ---
  
 ## What NOT To Do

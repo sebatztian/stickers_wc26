@@ -7,10 +7,12 @@ export default async function TradeComparePage() {
   const session = await getServerSession(authOptions);
   const myId = session!.user.id;
 
-  const users = await prisma.user.findMany({
-    where: { id: { not: myId } },
-    select: { id: true, name: true, collection: { select: { ownedQty: true } } },
-  });
+  const [users, totalStickers] = await Promise.all([
+    prisma.user.findMany({
+      select: { id: true, name: true, collection: { select: { ownedQty: true } } },
+    }),
+    prisma.sticker.count(),
+  ]);
 
   const ranked = users
     .map((u) => {
@@ -22,6 +24,7 @@ export default async function TradeComparePage() {
         uniqueCount,
         totalCount,
         duplicateCount: totalCount - uniqueCount,
+        isMe: u.id === myId,
       };
     })
     .sort((a, b) => b.uniqueCount - a.uniqueCount || b.totalCount - a.totalCount);
@@ -37,7 +40,7 @@ export default async function TradeComparePage() {
         </p>
       </div>
 
-      <TradeComparison myId={myId} users={ranked} />
+      <TradeComparison myId={myId} users={ranked} totalStickers={totalStickers} />
     </div>
   );
 }
