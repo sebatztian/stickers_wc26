@@ -1,26 +1,42 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { UserPicker } from "./UserPicker";
-import { COUNTRY_FLAGS } from "@/lib/constants";
-import type { Sticker, UserSticker } from "@/generated/prisma/client";
+import type { Sticker } from "@/generated/prisma/client";
 
-type UserStickerWithSticker = UserSticker & { sticker: Sticker };
+type StickerWithQty = { sticker: Sticker; ownedQty: number };
+
+interface RankedUser {
+  id: string;
+  name: string;
+  uniqueCount: number;
+  totalCount: number;
+  duplicateCount: number;
+}
 
 interface Props {
   myId: string;
+  users: RankedUser[];
 }
 
-export function TradeComparison({ myId }: Props) {
+export function TradeComparison({ users }: Props) {
   const router = useRouter();
   const [theirId, setTheirId] = useState("");
+  const [search, setSearch] = useState("");
   const [matches, setMatches] = useState<{
-    iCanGiveThem: UserStickerWithSticker[];
-    theyCanGiveMe: UserStickerWithSticker[];
+    iCanGiveThem: StickerWithQty[];
+    theyCanGiveMe: StickerWithQty[];
   } | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const selectedUser = users.find((u) => u.id === theirId) ?? null;
+
+  const filteredUsers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter((u) => u.name.toLowerCase().includes(q));
+  }, [users, search]);
 
   function handleCompare(userId: string) {
     setTheirId(userId);
@@ -36,13 +52,63 @@ export function TradeComparison({ myId }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4 flex-wrap">
-        <span className="text-panini-gray text-sm">Compare with:</span>
-        <UserPicker value={theirId} onChange={handleCompare} />
-        {isPending && (
-          <div className="text-panini-gold text-sm">Loading…</div>
-        )}
+      {/* Leaderboard / user picker */}
+      <div className="bg-panini-blue/10 border border-panini-blue/30 rounded-xl p-4 space-y-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <h3 className="font-display font-bold text-panini-white text-lg">Collectors</h3>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search user…"
+            className="bg-panini-navy border border-panini-blue/50 rounded-lg px-3 py-1.5 text-panini-white text-sm focus:outline-none focus:border-panini-gold"
+          />
+        </div>
+        <div className="space-y-1 max-h-72 overflow-y-auto">
+          {filteredUsers.length === 0 && (
+            <p className="text-panini-gray text-sm py-4 text-center">No users found</p>
+          )}
+          {filteredUsers.map((u) => {
+            const isSelected = u.id === theirId;
+            const rank = users.indexOf(u) + 1;
+            return (
+              <button
+                key={u.id}
+                onClick={() => handleCompare(u.id)}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                  isSelected
+                    ? "bg-panini-gold/20 ring-1 ring-panini-gold/50"
+                    : "bg-panini-navy/40 hover:bg-panini-blue/20"
+                }`}
+              >
+                <span
+                  className={`font-display font-bold text-sm w-6 shrink-0 text-center ${
+                    rank <= 3 ? "text-panini-gold" : "text-panini-gray"
+                  }`}
+                >
+                  {rank}
+                </span>
+                <span className="flex-1 text-panini-white font-medium truncate">{u.name}</span>
+                <span className="text-emerald-400 text-xs font-bold tabular-nums">
+                  {u.uniqueCount} <span className="text-panini-gray font-normal">unique</span>
+                </span>
+                <span className="text-panini-gray text-xs tabular-nums hidden sm:inline">
+                  {u.totalCount} total · {u.duplicateCount} dupes
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
+
+      {selectedUser && (
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="text-panini-gray text-sm">
+            Comparing with <span className="text-panini-gold font-medium">{selectedUser.name}</span>
+          </span>
+          {isPending && <span className="text-panini-gold text-sm">Loading…</span>}
+        </div>
+      )}
 
       {matches && (
         <div className="grid md:grid-cols-2 gap-6">
@@ -89,7 +155,7 @@ function ComparisonColumn({
 }: {
   title: string;
   subtitle: string;
-  items: UserStickerWithSticker[];
+  items: StickerWithQty[];
   accent: "emerald" | "blue";
 }) {
   const borderColor = accent === "emerald" ? "border-emerald-500/30" : "border-panini-blue-lt/30";

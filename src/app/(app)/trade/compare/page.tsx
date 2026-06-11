@@ -1,9 +1,30 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { TradeComparison } from "@/components/trades/TradeComparison";
 
 export default async function TradeComparePage() {
   const session = await getServerSession(authOptions);
+  const myId = session!.user.id;
+
+  const users = await prisma.user.findMany({
+    where: { id: { not: myId } },
+    select: { id: true, name: true, collection: { select: { ownedQty: true } } },
+  });
+
+  const ranked = users
+    .map((u) => {
+      const uniqueCount = u.collection.length;
+      const totalCount = u.collection.reduce((sum, c) => sum + c.ownedQty, 0);
+      return {
+        id: u.id,
+        name: u.name,
+        uniqueCount,
+        totalCount,
+        duplicateCount: totalCount - uniqueCount,
+      };
+    })
+    .sort((a, b) => b.uniqueCount - a.uniqueCount || b.totalCount - a.totalCount);
 
   return (
     <div className="space-y-6">
@@ -16,7 +37,7 @@ export default async function TradeComparePage() {
         </p>
       </div>
 
-      <TradeComparison myId={session!.user.id} />
+      <TradeComparison myId={myId} users={ranked} />
     </div>
   );
 }

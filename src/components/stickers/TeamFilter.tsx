@@ -1,13 +1,24 @@
 "use client";
 
+import { useMemo } from "react";
 import { COUNTRY_FLAGS, COUNTRY_NAMES, TEAM_CODES } from "@/lib/constants";
 
 interface TeamFilterProps {
   selected: string | null;
   onChange: (code: string | null) => void;
+  sortMode?: "album" | "alpha";
 }
 
-export function TeamFilter({ selected, onChange }: TeamFilterProps) {
+export function TeamFilter({ selected, onChange, sortMode = "album" }: TeamFilterProps) {
+  const teamCodes = useMemo(() => {
+    if (sortMode === "alpha") {
+      return [...TEAM_CODES].sort((a, b) =>
+        (COUNTRY_NAMES[a] ?? a).localeCompare(COUNTRY_NAMES[b] ?? b)
+      );
+    }
+    return TEAM_CODES;
+  }, [sortMode]);
+
   return (
     <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin">
       <button
@@ -30,7 +41,7 @@ export function TeamFilter({ selected, onChange }: TeamFilterProps) {
       >
         🏆 Special
       </button>
-      {TEAM_CODES.map((code) => (
+      {teamCodes.map((code) => (
         <button
           key={code}
           onClick={() => onChange(code)}

@@ -12,13 +12,10 @@ export default async function NewTradePage({
   const session = await getServerSession(authOptions);
   const userId = session!.user.id;
 
-  const [myStickers, allStickers] = await Promise.all([
-    prisma.userSticker.findMany({
-      where: { userId, ownedQty: { gt: 0 } },
-      include: { sticker: true },
-    }),
-    prisma.sticker.findMany({ orderBy: { albumNumber: "asc" } }),
-  ]);
+  const myStickers = await prisma.userSticker.findMany({
+    where: { userId, ownedQty: { gt: 0 } },
+    include: { sticker: true },
+  });
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -27,7 +24,6 @@ export default async function NewTradePage({
       </h1>
       <TradeCreateWizard
         myStickers={myStickers}
-        allStickers={allStickers}
         preselectedReceiverId={receiverId ?? ""}
       />
     </div>

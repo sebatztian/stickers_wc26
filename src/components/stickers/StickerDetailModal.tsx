@@ -1,9 +1,10 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import Image from "next/image";
 import { COUNTRY_FLAGS } from "@/lib/constants";
 import { setOwned } from "@/lib/actions/collection";
+import { updateStickerImage } from "@/lib/actions/stickers";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 
@@ -17,6 +18,7 @@ interface StickerData {
   isTeamLogo: boolean;
   isTeamPhoto: boolean;
   isSpecial: boolean;
+  imagePath: string | null;
 }
 
 interface Props {
@@ -28,6 +30,11 @@ interface Props {
 
 export function StickerDetailModal({ sticker, ownedQty, onClose, onUpdate }: Props) {
   const [isPending, startTransition] = useTransition();
+  const [isSavingImage, startImageTransition] = useTransition();
+  const [editingImage, setEditingImage] = useState(false);
+  const [imageUrl, setImageUrl] = useState(sticker.imagePath ?? "");
+  const [cacheBust, setCacheBust] = useState(0);
+  const [imageError, setImageError] = useState("");
   const flag = COUNTRY_FLAGS[sticker.code] ?? "🏆";
 
   function adjustQty(delta: number) {
@@ -37,6 +44,22 @@ export function StickerDetailModal({ sticker, ownedQty, onClose, onUpdate }: Pro
       await setOwned(sticker.id, newQty);
     });
   }
+
+  function saveImage() {
+    setImageError("");
+    startImageTransition(async () => {
+      const result = await updateStickerImage(sticker.id, imageUrl.trim());
+      if (result.success) {
+        sticker.imagePath = result.data.imagePath;
+        setCacheBust((n) => n + 1);
+        setEditingImage(false);
+      } else {
+        setImageError(result.error);
+      }
+    });
+  }
+
+  const imageSrc = `/api/stickers/${sticker.id}/image${cacheBust ? `?v=${cacheBust}` : ""}`;
 
   return (
     <div
@@ -54,9 +77,14 @@ export function StickerDetailModal({ sticker, ownedQty, onClose, onUpdate }: Pro
           ✕
         </button>
 
-        <div className="relative h-56 bg-gradient-to-b from-panini-blue/60 to-panini-navy overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setEditingImage((v) => !v)}
+          title="Click to edit image URL"
+          className="relative h-56 w-full bg-gradient-to-b from-panini-blue/60 to-panini-navy overflow-hidden block cursor-pointer group/img"
+        >
           <Image
-            src={`/api/stickers/${sticker.id}/image`}
+            src={imageSrc}
             alt={sticker.name}
             fill
             className="object-contain"
@@ -66,7 +94,43 @@ export function StickerDetailModal({ sticker, ownedQty, onClose, onUpdate }: Pro
           {sticker.isFoil && (
             <div className="absolute inset-0 foil-shimmer opacity-15 mix-blend-overlay pointer-events-none" />
           )}
-        </div>
+          <span className="absolute bottom-1.5 right-2 text-[10px] text-panini-white/70 bg-panini-navy/70 rounded px-1.5 py-0.5 opacity-0 group-hover/img:opacity-100 transition-opacity">
+            {editingImage ? "Editing image…" : "Click to edit image"}
+          </span>
+        </button>
+
+        {editingImage && (
+          <div className="bg-panini-navy/80 border-b border-panini-blue/40 p-3 space-y-2">
+            <label className="block text-panini-gray text-xs">Image URL</label>
+            <input
+              type="url"
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              placeholder="https://…"
+              className="w-full bg-panini-navy border border-panini-blue/50 rounded-lg px-2.5 py-1.5 text-panini-white text-xs focus:outline-none focus:border-panini-gold"
+            />
+            {imageError && <p className="text-panini-red text-xs">{imageError}</p>}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={saveImage}
+                disabled={isSavingImage}
+                className="bg-panini-gold hover:bg-panini-gold-lt text-panini-navy font-bold px-3 py-1 rounded text-xs transition-colors disabled:opacity-50"
+              >
+                {isSavingImage ? "Saving…" : "Save"}
+              </button>
+              <button
+                onClick={() => {
+                  setImageUrl(sticker.imagePath ?? "");
+                  setImageError("");
+                  setEditingImage(false);
+                }}
+                className="text-panini-gray hover:text-panini-white text-xs px-2 py-1"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="bg-panini-gold px-4 py-2 flex items-center gap-2">
           <span className="text-xl">{flag}</span>

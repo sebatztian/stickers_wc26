@@ -5,6 +5,7 @@ import { TeamFilter } from "./TeamFilter";
 import { StickerThumbnail } from "./StickerThumbnail";
 import { StickerDetailModal } from "./StickerDetailModal";
 import { setOwned } from "@/lib/actions/collection";
+import { COUNTRY_NAMES } from "@/lib/constants";
 import type { Sticker, UserSticker } from "@/generated/prisma/client";
 
 interface Props {
@@ -12,8 +13,9 @@ interface Props {
   initialUserStickers: Record<string, Pick<UserSticker, "ownedQty">>;
 }
 
-type FilterMode = "all" | "owned" | "missing";
+type FilterMode = "all" | "owned" | "missing" | "duplicates";
 type ViewMode = "card" | "quick";
+type SortMode = "album" | "alpha";
 
 function QuickRow({
   sticker,
@@ -76,17 +78,30 @@ export function StickerGrid({ stickers, initialUserStickers }: Props) {
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
   const [viewMode, setViewMode] = useState<ViewMode>("card");
+  const [sortMode, setSortMode] = useState<SortMode>("album");
   const [selectedSticker, setSelectedSticker] = useState<Sticker | null>(null);
 
   const filtered = useMemo(() => {
-    return stickers.filter((s) => {
+    const result = stickers.filter((s) => {
       if (selectedCode !== null && s.code !== selectedCode) return false;
       const qty = userStickers[s.id]?.ownedQty ?? 0;
       if (filterMode === "owned") return qty > 0;
       if (filterMode === "missing") return qty === 0;
+      if (filterMode === "duplicates") return qty > 1;
       return true;
     });
-  }, [stickers, selectedCode, filterMode, userStickers]);
+
+    if (sortMode === "alpha") {
+      // Group teams alphabetically by country name; keep album order within a team
+      result.sort((a, b) => {
+        const an = COUNTRY_NAMES[a.code] ?? a.country ?? a.code;
+        const bn = COUNTRY_NAMES[b.code] ?? b.country ?? b.code;
+        return an.localeCompare(bn) || a.albumNumber - b.albumNumber;
+      });
+    }
+
+    return result;
+  }, [stickers, selectedCode, filterMode, sortMode, userStickers]);
 
   function handleUpdate(id: string, ownedQty: number) {
     setUserStickers((prev) => ({ ...prev, [id]: { ownedQty } }));
@@ -128,7 +143,7 @@ export function StickerGrid({ stickers, initialUserStickers }: Props) {
       {/* Controls row */}
       <div className="flex items-center gap-2 flex-wrap">
         {/* Filter chips */}
-        {(["all", "owned", "missing"] as FilterMode[]).map((mode) => (
+        {(["all", "owned", "missing", "duplicates"] as FilterMode[]).map((mode) => (
           <button
             key={mode}
             onClick={() => setFilterMode(mode)}
@@ -144,8 +159,32 @@ export function StickerGrid({ stickers, initialUserStickers }: Props) {
 
         <span className="text-panini-gray text-xs ml-1">{filtered.length} stickers</span>
 
-        {/* View mode toggle — pushed to the right */}
+        {/* Sort toggle — pushed to the right */}
         <div className="ml-auto flex rounded-lg overflow-hidden border border-panini-blue/40">
+          <button
+            onClick={() => setSortMode("album")}
+            className={`px-3 py-1 text-xs font-medium transition-colors ${
+              sortMode === "album"
+                ? "bg-panini-blue text-panini-white"
+                : "bg-panini-navy text-panini-gray hover:text-panini-white"
+            }`}
+          >
+            Album
+          </button>
+          <button
+            onClick={() => setSortMode("alpha")}
+            className={`px-3 py-1 text-xs font-medium transition-colors ${
+              sortMode === "alpha"
+                ? "bg-panini-blue text-panini-white"
+                : "bg-panini-navy text-panini-gray hover:text-panini-white"
+            }`}
+          >
+            A–Z
+          </button>
+        </div>
+
+        {/* View mode toggle */}
+        <div className="flex rounded-lg overflow-hidden border border-panini-blue/40">
           <button
             onClick={() => setViewMode("card")}
             className={`px-3 py-1 text-xs font-medium transition-colors ${
@@ -170,7 +209,7 @@ export function StickerGrid({ stickers, initialUserStickers }: Props) {
       </div>
 
       {/* Team filter */}
-      <TeamFilter selected={selectedCode} onChange={setSelectedCode} />
+      <TeamFilter selected={selectedCode} onChange={setSelectedCode} sortMode={sortMode} />
 
       {/* Card view */}
       {viewMode === "card" && (

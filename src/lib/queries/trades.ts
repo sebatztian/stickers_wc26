@@ -56,7 +56,12 @@ export async function getTradeMatches(myId: string, theirId: string) {
     )
     .map((s) => ({ sticker: s.sticker, ownedQty: s.ownedQty }));
 
-  return { iCanGiveThem, theyCanGiveMe };
+  // Everything they own (qty > 0) — used by the trade wizard's "show all" toggle
+  const theirOwned = theirStickers
+    .filter((s) => s.ownedQty > 0)
+    .map((s) => ({ sticker: s.sticker, ownedQty: s.ownedQty }));
+
+  return { iCanGiveThem, theyCanGiveMe, theirOwned };
 }
 
 export async function getTradesForUser(userId: string) {

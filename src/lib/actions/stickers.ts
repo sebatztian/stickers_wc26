@@ -71,3 +71,30 @@ export async function createSticker(formData: FormData) {
   revalidatePath("/collection");
   return { success: true as const, data: sticker };
 }
+
+const UpdateImageSchema = z.object({
+  stickerId: z.string().min(1),
+  imageUrl: z
+    .string()
+    .trim()
+    .url("Must be a valid URL (http/https)")
+    .or(z.literal("")),
+});
+
+export async function updateStickerImage(stickerId: string, imageUrl: string) {
+  await requireSession();
+
+  const parsed = UpdateImageSchema.safeParse({ stickerId, imageUrl });
+  if (!parsed.success) {
+    return { success: false as const, error: parsed.error.errors[0].message };
+  }
+
+  const sticker = await prisma.sticker.update({
+    where: { id: parsed.data.stickerId },
+    data: { imagePath: parsed.data.imageUrl || null },
+    select: { id: true, imagePath: true },
+  });
+
+  revalidatePath("/collection");
+  return { success: true as const, data: sticker };
+}

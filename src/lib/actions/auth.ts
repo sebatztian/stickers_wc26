@@ -58,3 +58,26 @@ export async function changePassword(input: unknown) {
 
   return { success: true as const };
 }
+
+export async function deleteAccount(input: unknown) {
+  const session = await getServerSession(authOptions);
+  if (!session) return { success: false as const, error: "Not logged in" };
+
+  const parsed = z.object({ password: z.string().min(1) }).safeParse(input);
+  if (!parsed.success) return { success: false as const, error: "Password is required" };
+
+  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
+  if (!user) return { success: false as const, error: "User not found" };
+
+  const valid = await compare(parsed.data.password, user.passwordHash);
+  if (!valid) return { success: false as const, error: "Password is incorrect" };
+
+  // Trades reference users without cascade — remove them first (TradeItems cascade).
+  await prisma.trade.deleteMany({
+    where: { OR: [{ initiatorId: user.id }, { receiverId: user.id }] },
+  });
+  // UserStickers cascade on user delete.
+  await prisma.user.delete({ where: { id: user.id } });
+
+  return { success: true as const };
+}
