@@ -4,6 +4,7 @@ import { useState, useMemo, useTransition } from "react";
 import { TeamFilter } from "./TeamFilter";
 import { StickerThumbnail } from "./StickerThumbnail";
 import { StickerDetailModal } from "./StickerDetailModal";
+import { QuickAddByCode } from "./QuickAddByCode";
 import { setOwned } from "@/lib/actions/collection";
 import type { Sticker, UserSticker } from "@/generated/prisma/client";
 
@@ -134,6 +135,9 @@ export function StickerGrid({ stickers, initialUserStickers }: Props) {
           {Math.round((totalOwned / stickers.length) * 100)}%
         </span>
       </div>
+
+      {/* Quick add by code */}
+      <QuickAddByCode onAdded={handleUpdate} />
 
       {/* Controls row */}
       <div className="flex items-center gap-2 flex-wrap">
