@@ -5,7 +5,9 @@ import { TeamFilter } from "./TeamFilter";
 import { StickerThumbnail } from "./StickerThumbnail";
 import { StickerDetailModal } from "./StickerDetailModal";
 import { QuickAddByCode } from "./QuickAddByCode";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { setOwned } from "@/lib/actions/collection";
+import { compareStickers } from "@/lib/utils";
 import type { Sticker, UserSticker } from "@/generated/prisma/client";
 
 interface Props {
@@ -93,7 +95,7 @@ export function StickerGrid({ stickers, initialUserStickers }: Props) {
 
     if (sortMode === "alpha") {
       // Group teams alphabetically by abbreviation (e.g. ESP); keep album order within a team
-      result.sort((a, b) => a.code.localeCompare(b.code) || a.albumNumber - b.albumNumber);
+      result.sort((a, b) => compareStickers(a, b, "alpha"));
     }
 
     return result;
@@ -159,52 +161,25 @@ export function StickerGrid({ stickers, initialUserStickers }: Props) {
         <span className="text-panini-gray text-xs ml-1">{filtered.length} stickers</span>
 
         {/* Sort toggle — pushed to the right */}
-        <div className="ml-auto flex rounded-lg overflow-hidden border border-panini-blue/40">
-          <button
-            onClick={() => setSortMode("album")}
-            className={`px-3 py-1 text-xs font-medium transition-colors ${
-              sortMode === "album"
-                ? "bg-panini-blue text-panini-white"
-                : "bg-panini-navy text-panini-gray hover:text-panini-white"
-            }`}
-          >
-            Album
-          </button>
-          <button
-            onClick={() => setSortMode("alpha")}
-            className={`px-3 py-1 text-xs font-medium transition-colors ${
-              sortMode === "alpha"
-                ? "bg-panini-blue text-panini-white"
-                : "bg-panini-navy text-panini-gray hover:text-panini-white"
-            }`}
-          >
-            A–Z
-          </button>
-        </div>
+        <SegmentedControl
+          className="ml-auto"
+          options={[
+            { value: "album", label: "Album" },
+            { value: "alpha", label: "A–Z" },
+          ]}
+          value={sortMode}
+          onChange={setSortMode}
+        />
 
         {/* View mode toggle */}
-        <div className="flex rounded-lg overflow-hidden border border-panini-blue/40">
-          <button
-            onClick={() => setViewMode("card")}
-            className={`px-3 py-1 text-xs font-medium transition-colors ${
-              viewMode === "card"
-                ? "bg-panini-blue text-panini-white"
-                : "bg-panini-navy text-panini-gray hover:text-panini-white"
-            }`}
-          >
-            Cards
-          </button>
-          <button
-            onClick={() => setViewMode("quick")}
-            className={`px-3 py-1 text-xs font-medium transition-colors ${
-              viewMode === "quick"
-                ? "bg-panini-blue text-panini-white"
-                : "bg-panini-navy text-panini-gray hover:text-panini-white"
-            }`}
-          >
-            Quick
-          </button>
-        </div>
+        <SegmentedControl
+          options={[
+            { value: "card", label: "Cards" },
+            { value: "quick", label: "Quick" },
+          ]}
+          value={viewMode}
+          onChange={setViewMode}
+        />
       </div>
 
       {/* Team filter */}
