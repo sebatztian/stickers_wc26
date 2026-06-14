@@ -2,7 +2,9 @@
 
 import { useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
+import { StickerMiniList, type StickerListView } from "@/components/stickers/StickerMiniList";
+import type { StickerSortMode } from "@/lib/utils";
 import type { Sticker } from "@/generated/prisma/client";
 
 type StickerWithQty = { sticker: Sticker; ownedQty: number };
@@ -26,6 +28,8 @@ export function TradeComparison({ users, totalStickers }: Props) {
   const router = useRouter();
   const [theirId, setTheirId] = useState("");
   const [search, setSearch] = useState("");
+  const [sortMode, setSortMode] = useState<StickerSortMode>("album");
+  const [view, setView] = useState<StickerListView>("cards");
   const [matches, setMatches] = useState<{
     iCanGiveThem: StickerWithQty[];
     theyCanGiveMe: StickerWithQty[];
@@ -147,6 +151,27 @@ export function TradeComparison({ users, totalStickers }: Props) {
         </div>
       )}
 
+      {matches && (matches.iCanGiveThem.length > 0 || matches.theyCanGiveMe.length > 0) && (
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <SegmentedControl
+            options={[
+              { value: "album", label: "Album" },
+              { value: "alpha", label: "A–Z" },
+            ]}
+            value={sortMode}
+            onChange={setSortMode}
+          />
+          <SegmentedControl
+            options={[
+              { value: "cards", label: "Cards" },
+              { value: "list", label: "List" },
+            ]}
+            value={view}
+            onChange={setView}
+          />
+        </div>
+      )}
+
       {matches && (
         <div className="grid md:grid-cols-2 gap-6">
           <ComparisonColumn
@@ -154,12 +179,16 @@ export function TradeComparison({ users, totalStickers }: Props) {
             subtitle="My duplicates they need"
             items={matches.iCanGiveThem}
             accent="emerald"
+            sortMode={sortMode}
+            view={view}
           />
           <ComparisonColumn
             title="They Can Give Me"
             subtitle="Their duplicates I need"
             items={matches.theyCanGiveMe}
             accent="blue"
+            sortMode={sortMode}
+            view={view}
           />
         </div>
       )}
@@ -189,11 +218,15 @@ function ComparisonColumn({
   subtitle,
   items,
   accent,
+  sortMode,
+  view,
 }: {
   title: string;
   subtitle: string;
   items: StickerWithQty[];
   accent: "emerald" | "blue";
+  sortMode: StickerSortMode;
+  view: StickerListView;
 }) {
   const borderColor = accent === "emerald" ? "border-emerald-500/30" : "border-panini-blue-lt/30";
   const badgeColor =
@@ -211,33 +244,14 @@ function ComparisonColumn({
         </span>
       </div>
 
-      {items.length === 0 ? (
-        <p className="text-panini-gray text-sm py-4 text-center">None available</p>
-      ) : (
-        <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-80 overflow-y-auto">
-          {items.map(({ sticker, ownedQty }) => (
-            <div key={sticker.id} className="relative">
-              <div className="aspect-[3/4] relative bg-panini-navy rounded overflow-hidden">
-                <Image
-                  src={`/api/stickers/${sticker.id}/image`}
-                  alt={sticker.name}
-                  fill
-                  className="object-cover"
-                  sizes="80px"
-                  unoptimized
-                />
-              </div>
-              <div className="mt-0.5 text-center">
-                <p className="text-[9px] text-panini-gray truncate">{sticker.id}</p>
-                <p className="text-[9px] text-panini-white/70 truncate leading-tight">{sticker.name}</p>
-              </div>
-              <div className="absolute top-0.5 right-0.5 bg-panini-gold text-panini-navy text-[8px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                ×{ownedQty}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="max-h-80 overflow-y-auto">
+        <StickerMiniList
+          items={items.map(({ sticker, ownedQty }) => ({ sticker, qty: ownedQty }))}
+          view={view}
+          sortMode={sortMode}
+          emptyText="None available"
+        />
+      </div>
     </div>
   );
 }
