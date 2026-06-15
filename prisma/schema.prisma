@@ -19,6 +19,7 @@ model User {
   collection   UserSticker[]
   initiated    Trade[]       @relation("TradeInitiator")
   received     Trade[]       @relation("TradeReceiver")
+  virtualCollections VirtualCollection[]
 
   @@map("users")
 }
@@ -74,6 +75,24 @@ model Trade {
   @@index([initiatorId])
   @@index([receiverId])
   @@map("trades")
+}
+
+// An "outside" collection a user imports by hand (e.g. a friend who isn't
+// registered). Stored as flat sticker-ID lists. Only ever visible to its owner.
+//   duplicates = sticker IDs that person has spares of  → they can give me
+//   missing    = sticker IDs that person still needs    → I can give them
+model VirtualCollection {
+  id         String   @id @default(cuid())
+  ownerId    String
+  name       String
+  duplicates String[]
+  missing    String[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  owner      User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId])
+  @@map("virtual_collections")
 }
 
 model TradeItem {
