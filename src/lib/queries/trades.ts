@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import type { Sticker } from "@/generated/prisma/client";
 
 export async function getTradeMatches(myId: string, theirId: string) {
   const [myStickers, theirStickers, activeTrades] = await Promise.all([
@@ -62,6 +63,59 @@ export async function getTradeMatches(myId: string, theirId: string) {
     .map((s) => ({ sticker: s.sticker, ownedQty: s.ownedQty }));
 
   return { iCanGiveThem, theyCanGiveMe, theirOwned };
+}
+
+export type VirtualCollectionWithMatches = {
+  id: string;
+  name: string;
+  duplicates: string[];
+  missing: string[];
+  iCanGiveThem: { sticker: Sticker; ownedQty: number }[];
+  theyCanGiveMe: { sticker: Sticker; ownedQty: number }[];
+};
+
+/**
+ * Load a user's imported (virtual) collections and, for each, work out the
+ * tradeable stickers against the user's own collection:
+ *   iCanGiveThem  = my duplicates (qty > 1) that the import lists as missing
+ *   theyCanGiveMe = the import's duplicates that I don't own yet
+ */
+export async function getVirtualCollectionsWithMatches(
+  myId: string
+): Promise<VirtualCollectionWithMatches[]> {
+  const [collections, myStickers, allStickers] = await Promise.all([
+    prisma.virtualCollection.findMany({
+      where: { ownerId: myId },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.userSticker.findMany({ where: { userId: myId }, include: { sticker: true } }),
+    prisma.sticker.findMany(),
+  ]);
+
+  const myOwnedMap = new Map(myStickers.map((s) => [s.stickerId, s.ownedQty]));
+  const stickerMap = new Map(allStickers.map((s) => [s.id, s]));
+
+  return collections.map((vc) => {
+    const missingSet = new Set(vc.missing);
+    const iCanGiveThem = myStickers
+      .filter((s) => s.ownedQty > 1 && missingSet.has(s.stickerId))
+      .map((s) => ({ sticker: s.sticker, ownedQty: s.ownedQty }));
+
+    const theyCanGiveMe = vc.duplicates
+      .filter((id) => (myOwnedMap.get(id) ?? 0) === 0)
+      .map((id) => stickerMap.get(id))
+      .filter((s): s is Sticker => Boolean(s))
+      .map((sticker) => ({ sticker, ownedQty: 1 }));
+
+    return {
+      id: vc.id,
+      name: vc.name,
+      duplicates: vc.duplicates,
+      missing: vc.missing,
+      iCanGiveThem,
+      theyCanGiveMe,
+    };
+  });
 }
 
 export async function getTradesForUser(userId: string) {

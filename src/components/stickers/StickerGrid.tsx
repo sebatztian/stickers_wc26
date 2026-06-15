@@ -7,6 +7,7 @@ import { StickerDetailModal } from "./StickerDetailModal";
 import { QuickAddByCode } from "./QuickAddByCode";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { setOwned } from "@/lib/actions/collection";
+import { COUNTRY_FLAGS, COUNTRY_NAMES } from "@/lib/constants";
 import { compareStickers } from "@/lib/utils";
 import type { Sticker, UserSticker } from "@/generated/prisma/client";
 
@@ -107,9 +108,8 @@ export function StickerGrid({ stickers, initialUserStickers }: Props) {
 
   const totalOwned = stickers.filter((s) => (userStickers[s.id]?.ownedQty ?? 0) > 0).length;
 
-  // Group by code for quick view
+  // Group by country code so both card and quick views are organised by team.
   const groupedByCode = useMemo(() => {
-    if (viewMode !== "quick") return null;
     const map = new Map<string, Sticker[]>();
     for (const s of filtered) {
       const arr = map.get(s.code) ?? [];
@@ -117,7 +117,7 @@ export function StickerGrid({ stickers, initialUserStickers }: Props) {
       map.set(s.code, arr);
     }
     return map;
-  }, [filtered, viewMode]);
+  }, [filtered]);
 
   return (
     <div className="space-y-4">
@@ -185,37 +185,46 @@ export function StickerGrid({ stickers, initialUserStickers }: Props) {
       {/* Team filter */}
       <TeamFilter selected={selectedCode} onChange={setSelectedCode} sortMode={sortMode} />
 
-      {/* Card view */}
+      {/* Card view — grouped by country, like quick view */}
       {viewMode === "card" && (
-        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-2">
-          {filtered.map((sticker) => {
-            const us = userStickers[sticker.id];
-            return (
-              <StickerThumbnail
-                key={sticker.id}
-                id={sticker.id}
-                name={sticker.name}
-                country={sticker.country}
-                code={sticker.code}
-                isFoil={sticker.isFoil}
-                isTeamLogo={sticker.isTeamLogo}
-                isTeamPhoto={sticker.isTeamPhoto}
-                isSpecial={sticker.isSpecial}
-                ownedQty={us?.ownedQty ?? 0}
-                onClick={() => setSelectedSticker(sticker)}
-              />
-            );
-          })}
-        </div>
-      )}
-
-      {/* Quick view */}
-      {viewMode === "quick" && groupedByCode && (
         <div className="space-y-4">
           {[...groupedByCode.entries()].map(([code, stickersInGroup]) => (
             <div key={code}>
               <h3 className="text-panini-gold font-display font-bold text-sm uppercase tracking-wide mb-1 px-1">
-                {code}
+                {COUNTRY_FLAGS[code] ?? ""} {COUNTRY_NAMES[code] ?? code}
+              </h3>
+              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-2">
+                {stickersInGroup.map((sticker) => {
+                  const us = userStickers[sticker.id];
+                  return (
+                    <StickerThumbnail
+                      key={sticker.id}
+                      id={sticker.id}
+                      name={sticker.name}
+                      country={sticker.country}
+                      code={sticker.code}
+                      isFoil={sticker.isFoil}
+                      isTeamLogo={sticker.isTeamLogo}
+                      isTeamPhoto={sticker.isTeamPhoto}
+                      isSpecial={sticker.isSpecial}
+                      ownedQty={us?.ownedQty ?? 0}
+                      onClick={() => setSelectedSticker(sticker)}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Quick view */}
+      {viewMode === "quick" && (
+        <div className="space-y-4">
+          {[...groupedByCode.entries()].map(([code, stickersInGroup]) => (
+            <div key={code}>
+              <h3 className="text-panini-gold font-display font-bold text-sm uppercase tracking-wide mb-1 px-1">
+                {COUNTRY_FLAGS[code] ?? ""} {COUNTRY_NAMES[code] ?? code}
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-0.5">
                 {stickersInGroup.map((sticker) => (

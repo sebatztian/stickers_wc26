@@ -2,10 +2,10 @@
 
 import { useState, useTransition, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { UserPicker } from "./UserPicker";
 import { createTrade } from "@/lib/actions/trades";
 import { Button } from "@/components/ui/Button";
+import { StickerSelectGrid } from "@/components/stickers/StickerSelectGrid";
 import type { Sticker, UserSticker } from "@/generated/prisma/client";
 
 type MySticker = UserSticker & { sticker: Sticker };
@@ -125,6 +125,9 @@ export function TradeCreateWizard({ myStickers, preselectedReceiverId }: Props) 
   const offerItems = offerSource.filter((i) => matchesSearch(i.sticker, search));
   const requestItems = requestSource.filter((i) => matchesSearch(i.sticker, search));
 
+  const offeredIds = useMemo(() => new Set(offered.map((i) => i.stickerId)), [offered]);
+  const requestedIds = useMemo(() => new Set(requested.map((i) => i.stickerId)), [requested]);
+
   return (
     <div className="space-y-6">
       {/* Partner */}
@@ -183,7 +186,7 @@ export function TradeCreateWizard({ myStickers, preselectedReceiverId }: Props) 
             </div>
             <StickerSelectGrid
               items={offerItems}
-              selected={offered}
+              selectedIds={offeredIds}
               onToggle={toggleOffered}
               ringClass="ring-panini-gold"
               loading={loadingMatches}
@@ -204,7 +207,7 @@ export function TradeCreateWizard({ myStickers, preselectedReceiverId }: Props) 
             </div>
             <StickerSelectGrid
               items={requestItems}
-              selected={requested}
+              selectedIds={requestedIds}
               onToggle={toggleRequested}
               ringClass="ring-panini-blue-lt"
               loading={loadingMatches}
@@ -237,54 +240,6 @@ export function TradeCreateWizard({ myStickers, preselectedReceiverId }: Props) 
       <Button variant="primary" size="lg" onClick={handleSubmit} disabled={isPending} className="w-full">
         {isPending ? "Sending…" : isGift ? "Send as Gift" : isWishRequest ? "Send Wish Request" : "Send Trade Proposal"}
       </Button>
-    </div>
-  );
-}
-
-function StickerSelectGrid({
-  items,
-  selected,
-  onToggle,
-  ringClass,
-  loading,
-  emptyText,
-}: {
-  items: StickerWithQty[];
-  selected: SelectedItem[];
-  onToggle: (sticker: Sticker) => void;
-  ringClass: string;
-  loading: boolean;
-  emptyText: string;
-}) {
-  return (
-    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-64 overflow-y-auto bg-panini-navy/50 rounded-xl p-3">
-      {loading && <p className="col-span-full text-panini-gray text-xs text-center py-4">Loading…</p>}
-      {!loading && items.length === 0 && (
-        <p className="col-span-full text-panini-gray text-xs text-center py-4">{emptyText}</p>
-      )}
-      {!loading &&
-        items.map(({ sticker, ownedQty }) => {
-          const isSelected = selected.some((i) => i.stickerId === sticker.id);
-          return (
-            <button
-              key={sticker.id}
-              onClick={() => onToggle(sticker)}
-              className={`relative aspect-[3/4] rounded overflow-hidden transition-all ${
-                isSelected ? `ring-2 ${ringClass}` : "ring-1 ring-panini-blue/30 opacity-70 hover:opacity-100"
-              }`}
-            >
-              <Image src={`/api/stickers/${sticker.id}/image`} alt={sticker.name} fill className="object-cover" sizes="80px" unoptimized />
-              <div className="absolute bottom-0 left-0 right-0 bg-panini-navy/80 py-0.5">
-                <p className="text-[8px] text-center text-panini-white truncate px-1">{sticker.id}</p>
-              </div>
-              {ownedQty > 1 && (
-                <div className="absolute top-0.5 right-0.5 bg-panini-gold text-panini-navy text-[8px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                  ×{ownedQty}
-                </div>
-              )}
-            </button>
-          );
-        })}
     </div>
   );
 }
