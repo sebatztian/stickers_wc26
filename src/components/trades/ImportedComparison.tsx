@@ -160,8 +160,8 @@ export function ImportedComparison({ collections }: Props) {
                 value={duplicates}
                 onChange={(e) => setDuplicates(e.target.value)}
                 rows={4}
-                placeholder="MEX1, GER5, FWC2…"
-                className="w-full bg-panini-navy border border-panini-blue/50 rounded-lg px-3 py-2 text-panini-white text-sm font-mono uppercase focus:outline-none focus:border-panini-gold resize-y"
+                placeholder={"MEX: 1,2,6 (x2)\nGER: 3,15(x2),17\nor MEX1 GER5 FWC2…"}
+                className="w-full bg-panini-navy border border-panini-blue/50 rounded-lg px-3 py-2 text-panini-white text-sm font-mono focus:outline-none focus:border-panini-gold resize-y"
               />
             </div>
             <div className="space-y-1">
@@ -171,8 +171,8 @@ export function ImportedComparison({ collections }: Props) {
                 value={missing}
                 onChange={(e) => setMissing(e.target.value)}
                 rows={4}
-                placeholder="ARG10, BRA3…"
-                className="w-full bg-panini-navy border border-panini-blue/50 rounded-lg px-3 py-2 text-panini-white text-sm font-mono uppercase focus:outline-none focus:border-panini-gold resize-y"
+                placeholder={"ARG: 10, 14, 20\nor ARG10 BRA3…"}
+                className="w-full bg-panini-navy border border-panini-blue/50 rounded-lg px-3 py-2 text-panini-white text-sm font-mono focus:outline-none focus:border-panini-gold resize-y"
               />
             </div>
           </div>
