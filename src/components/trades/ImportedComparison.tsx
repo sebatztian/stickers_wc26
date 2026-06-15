@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import {
   createVirtualCollection,
   deleteVirtualCollection,
-  applyVirtualTrade,
+  saveVirtualTrade,
 } from "@/lib/actions/virtual";
 import { compareStickers } from "@/lib/utils";
 import type { VirtualCollectionWithMatches } from "@/lib/queries/trades";
@@ -77,24 +77,44 @@ export function ImportedComparison({ collections }: Props) {
     });
   }
 
-  function handleApply() {
-    if (give.size === 0 && receive.size === 0) return;
+  function handleSave() {
+    if (!selected || (give.size === 0 && receive.size === 0)) return;
     startTransition(async () => {
-      const res = await applyVirtualTrade({ give: [...give], receive: [...receive] });
+      const res = await saveVirtualTrade({
+        virtualCollectionId: selected.id,
+        give: [...give],
+        receive: [...receive],
+      });
       if (!res.success) {
         setFeedback({ type: "error", message: res.error });
         return;
       }
       setGive(new Set());
       setReceive(new Set());
-      setFeedback({
-        type: "success",
-        message:
-          res.warnings.length > 0
-            ? `Collection updated (some weren't in your collection: ${res.warnings.join(", ")}).`
-            : "Collection updated.",
-      });
-      router.refresh();
+      setFeedback({ type: "success", message: "Trade saved — you can apply it from Trade History." });
+      router.push(`/trade/${res.data.id}`);
+    });
+  }
+
+  function handleCopy() {
+    if (!selected) return;
+    const giveItems = selected.iCanGiveThem.filter((i) => give.has(i.sticker.id));
+    const receiveItems = selected.theyCanGiveMe.filter((i) => receive.has(i.sticker.id));
+
+    function formatId(id: string) {
+      // Insert space between letters and digits: "MEX1" → "MEX 1"
+      return id.replace(/^([A-Z]+)(\d+)$/, "$1 $2");
+    }
+
+    const lines: string[] = [];
+    lines.push(`I offer (${giveItems.length} Sticker${giveItems.length !== 1 ? "s" : ""}):`);
+    lines.push(giveItems.map((i) => formatId(i.sticker.id)).join(", ") || "—");
+    lines.push("");
+    lines.push(`I want (${receiveItems.length} Sticker${receiveItems.length !== 1 ? "s" : ""}):`);
+    lines.push(receiveItems.map((i) => formatId(i.sticker.id)).join(", ") || "—");
+
+    navigator.clipboard.writeText(lines.join("\n")).then(() => {
+      setFeedback({ type: "success", message: "Copied to clipboard!" });
     });
   }
 
@@ -213,13 +233,19 @@ export function ImportedComparison({ collections }: Props) {
           )}
 
           {(give.size > 0 || receive.size > 0) && (
-            <div className="flex items-center justify-center gap-4 flex-wrap">
+            <div className="flex items-center justify-center gap-3 flex-wrap">
               <span className="text-panini-gray text-sm">
                 Giving <span className="text-emerald-400 font-bold">{give.size}</span> · Receiving{" "}
                 <span className="text-panini-blue-lt font-bold">{receive.size}</span>
               </span>
-              <Button variant="primary" size="lg" onClick={handleApply} disabled={isPending}>
-                {isPending ? "Updating…" : "Apply to my collection"}
+              <button
+                onClick={handleCopy}
+                className="px-4 py-2 rounded-lg text-sm font-medium border border-panini-blue/40 text-panini-gray hover:text-panini-white hover:border-panini-gold/40 transition-colors"
+              >
+                Copy proposal
+              </button>
+              <Button variant="primary" size="lg" onClick={handleSave} disabled={isPending}>
+                {isPending ? "Saving…" : "Save as trade"}
               </Button>
             </div>
           )}

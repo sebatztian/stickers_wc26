@@ -68,6 +68,64 @@ export async function deleteVirtualCollection(id: string) {
   return { success: true as const };
 }
 
+const SaveVirtualTradeSchema = z.object({
+  virtualCollectionId: z.string().min(1),
+  give: z.array(z.string().min(1)),
+  receive: z.array(z.string().min(1)),
+});
+
+/**
+ * Save the selected stickers as a virtual (pre-accepted) trade record so it
+ * shows up in trade history and can be applied to the collection from there.
+ * receiverId is set to the initiator (self-trade) since the partner is virtual.
+ */
+export async function saveVirtualTrade(input: unknown) {
+  const session = await requireSession();
+  const parsed = SaveVirtualTradeSchema.safeParse(input);
+  if (!parsed.success) return { success: false as const, error: "Invalid input" };
+
+  const { virtualCollectionId, give, receive } = parsed.data;
+  if (give.length === 0 && receive.length === 0) {
+    return { success: false as const, error: "Select at least one sticker" };
+  }
+
+  const vc = await prisma.virtualCollection.findUnique({ where: { id: virtualCollectionId } });
+  if (!vc || vc.ownerId !== session.user.id) {
+    return { success: false as const, error: "Collection not found" };
+  }
+
+  const userId = session.user.id;
+
+  // Verify offered stickers are in inventory
+  for (const stickerId of give) {
+    const us = await prisma.userSticker.findUnique({
+      where: { userId_stickerId: { userId, stickerId } },
+    });
+    if (!us || us.ownedQty < 1) {
+      return { success: false as const, error: `You don't have sticker ${stickerId}` };
+    }
+  }
+
+  const trade = await prisma.trade.create({
+    data: {
+      initiatorId: userId,
+      receiverId: userId, // self-referential for virtual trades
+      status: "ACCEPTED",
+      isVirtual: true,
+      virtualPartnerName: vc.name,
+      items: {
+        create: [
+          ...give.map((stickerId) => ({ stickerId, direction: "OFFERED", quantity: 1 })),
+          ...receive.map((stickerId) => ({ stickerId, direction: "REQUESTED", quantity: 1 })),
+        ],
+      },
+    },
+  });
+
+  revalidatePath("/trade");
+  return { success: true as const, data: { id: trade.id } };
+}
+
 const ApplyVirtualSchema = z.object({
   give: z.array(z.string().min(1)),
   receive: z.array(z.string().min(1)),

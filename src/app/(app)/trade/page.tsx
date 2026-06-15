@@ -9,12 +9,13 @@ export default async function TradePage() {
   const trades = await getTradesForUser(session!.user.id);
 
   const incoming = trades.filter(
-    (t) => t.receiverId === session!.user.id && t.status === "PENDING"
+    (t) => !t.isVirtual && t.receiverId === session!.user.id && t.status === "PENDING"
   );
   const outgoing = trades.filter(
-    (t) => t.initiatorId === session!.user.id && t.status === "PENDING"
+    (t) => !t.isVirtual && t.initiatorId === session!.user.id && t.status === "PENDING"
   );
-  const history = trades.filter((t) => t.status !== "PENDING");
+  const virtual = trades.filter((t) => t.isVirtual);
+  const history = trades.filter((t) => !t.isVirtual && t.status !== "PENDING");
 
   return (
     <div className="space-y-8 max-w-3xl">
@@ -35,6 +36,7 @@ export default async function TradePage() {
 
       <TradeSection title="Incoming" trades={incoming} currentUserId={session!.user.id} />
       <TradeSection title="Outgoing" trades={outgoing} currentUserId={session!.user.id} />
+      <TradeSection title="Imported" trades={virtual} currentUserId={session!.user.id} />
       <TradeSection title="History" trades={history} currentUserId={session!.user.id} />
     </div>
   );
@@ -63,6 +65,15 @@ function TradeSection({
           const offered = trade.items.filter((i) => i.direction === "OFFERED");
           const requested = trade.items.filter((i) => i.direction === "REQUESTED");
 
+          const partnerLabel = trade.isVirtual
+            ? trade.virtualPartnerName ?? "Imported"
+            : partner.name;
+          const directionLabel = trade.isVirtual
+            ? "with"
+            : title === "Incoming"
+            ? "From"
+            : "To";
+
           return (
             <Link
               key={trade.id}
@@ -71,8 +82,8 @@ function TradeSection({
             >
               <div>
                 <p className="text-panini-white font-medium">
-                  {title === "Incoming" ? "From" : "To"}{" "}
-                  <span className="text-panini-gold">{partner.name}</span>
+                  {directionLabel}{" "}
+                  <span className="text-panini-gold">{partnerLabel}</span>
                 </p>
                 <p className="text-panini-gray text-xs mt-0.5">
                   {offered.length} offered · {requested.length} requested

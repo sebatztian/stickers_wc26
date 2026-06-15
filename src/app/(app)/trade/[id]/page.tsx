@@ -34,6 +34,9 @@ export default async function TradeDetailPage({
   const requested = trade.items.filter((i) => i.direction === "REQUESTED");
   const isInitiator = trade.initiatorId === session!.user.id;
   const partner = isInitiator ? trade.receiver : trade.initiator;
+  const partnerName = trade.isVirtual
+    ? (trade.virtualPartnerName ?? "Imported collection")
+    : partner.name;
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -44,7 +47,7 @@ export default async function TradeDetailPage({
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-3xl font-bold text-panini-white tracking-wide">
-            Trade with <span className="text-panini-gold">{partner.name}</span>
+            Trade with <span className="text-panini-gold">{partnerName}</span>
           </h1>
           <p className="text-panini-gray text-sm mt-1">
             {new Date(trade.createdAt).toLocaleDateString()}
@@ -72,18 +75,20 @@ export default async function TradeDetailPage({
         }}
       />
 
-      {trade.status === "PENDING" && (
+      {trade.status === "PENDING" && !trade.isVirtual && (
         <TradeActions tradeId={trade.id} isInitiator={isInitiator} />
       )}
 
       {trade.status === "ACCEPTED" && (
         <div className="bg-panini-blue/10 border border-emerald-500/30 rounded-xl p-4 space-y-2">
           <p className="text-emerald-400 font-medium text-sm">
-            This trade was accepted. Apply it to update your collection.
+            {trade.isVirtual
+              ? "Apply this trade to update your collection."
+              : "This trade was accepted. Apply it to update your collection."}
           </p>
           <TradeApplyButton
             tradeId={trade.id}
-            alreadyApplied={isInitiator ? trade.initiatorApplied : trade.receiverApplied}
+            alreadyApplied={trade.isVirtual ? trade.initiatorApplied : isInitiator ? trade.initiatorApplied : trade.receiverApplied}
           />
         </div>
       )}
