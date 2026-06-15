@@ -59,13 +59,15 @@ model UserSticker {
 }
 
 model Trade {
-  id               String      @id @default(cuid())
-  initiatorId      String
-  receiverId       String
-  status           String      @default("PENDING")
-  message          String?
-  initiatorApplied Boolean     @default(false)
-  receiverApplied  Boolean     @default(false)
+  id                 String      @id @default(cuid())
+  initiatorId        String
+  receiverId         String
+  status             String      @default("PENDING")
+  message            String?
+  isVirtual          Boolean     @default(false)
+  virtualPartnerName String?
+  initiatorApplied   Boolean     @default(false)
+  receiverApplied    Boolean     @default(false)
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
   initiator        User        @relation("TradeInitiator", fields: [initiatorId], references: [id])
