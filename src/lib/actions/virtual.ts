@@ -15,6 +15,7 @@ async function requireSession() {
 
 const CreateVirtualSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(60),
+  contactUrl: z.string().url("Must be a valid URL").max(500).or(z.literal("")).optional(),
   duplicates: z.string().max(5000),
   missing: z.string().max(5000),
 });
@@ -43,10 +44,13 @@ export async function createVirtualCollection(input: unknown) {
   const dupes = await resolveIds(parseStickerIds(parsed.data.duplicates));
   const missing = await resolveIds(parseStickerIds(parsed.data.missing));
 
+  const contactUrl = parsed.data.contactUrl || null;
+
   const created = await prisma.virtualCollection.create({
     data: {
       ownerId: session.user.id,
       name: parsed.data.name,
+      contactUrl,
       duplicates: dupes.valid,
       missing: missing.valid,
     },
@@ -65,6 +69,16 @@ export async function deleteVirtualCollection(id: string) {
   // deleteMany scoped by owner so a user can only ever remove their own.
   await prisma.virtualCollection.deleteMany({ where: { id, ownerId: session.user.id } });
   revalidatePath("/trade/import");
+  return { success: true as const };
+}
+
+export async function deleteVirtualTrade(tradeId: string) {
+  const session = await requireSession();
+  // Only delete if the trade is virtual and belongs to this user.
+  await prisma.trade.deleteMany({
+    where: { id: tradeId, initiatorId: session.user.id, isVirtual: true },
+  });
+  revalidatePath("/trade");
   return { success: true as const };
 }
 
@@ -113,6 +127,7 @@ export async function saveVirtualTrade(input: unknown) {
       status: "ACCEPTED",
       isVirtual: true,
       virtualPartnerName: vc.name,
+      virtualContactUrl: vc.contactUrl ?? null,
       items: {
         create: [
           ...give.map((stickerId) => ({ stickerId, direction: "OFFERED", quantity: 1 })),

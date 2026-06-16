@@ -66,6 +66,7 @@ model Trade {
   message            String?
   isVirtual          Boolean     @default(false)
   virtualPartnerName String?
+  virtualContactUrl  String?
   initiatorApplied   Boolean     @default(false)
   receiverApplied    Boolean     @default(false)
   createdAt        DateTime    @default(now())
@@ -87,6 +88,7 @@ model VirtualCollection {
   id         String   @id @default(cuid())
   ownerId    String
   name       String
+  contactUrl String?
   duplicates String[]
   missing    String[]
   createdAt  DateTime @default(now())

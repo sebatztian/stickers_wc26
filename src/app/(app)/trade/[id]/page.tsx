@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { Badge } from "@/components/ui/Badge";
 import { TradeActions } from "@/components/trades/TradeActions";
 import { TradeApplyButton } from "@/components/trades/TradeApplyButton";
+import { VirtualTradeActions } from "@/components/trades/VirtualTradeActions";
 import { TradeStickerLists } from "@/components/trades/TradeStickerLists";
 import Link from "next/link";
 
@@ -58,6 +59,20 @@ export default async function TradeDetailPage({
         </Badge>
       </div>
 
+      {trade.virtualContactUrl && (
+        <div className="bg-panini-blue/10 border border-panini-blue/30 rounded-xl p-4 flex items-center gap-3">
+          <span className="text-panini-gray text-sm shrink-0">Listing:</span>
+          <a
+            href={trade.virtualContactUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-panini-blue-lt hover:text-panini-gold text-sm truncate transition-colors"
+          >
+            {trade.virtualContactUrl}
+          </a>
+        </div>
+      )}
+
       {trade.message && (
         <div className="bg-panini-blue/10 border border-panini-blue/30 rounded-xl p-4">
           <p className="text-panini-gray text-sm italic">&ldquo;{trade.message}&rdquo;</p>
@@ -91,6 +106,10 @@ export default async function TradeDetailPage({
             alreadyApplied={trade.isVirtual ? trade.initiatorApplied : isInitiator ? trade.initiatorApplied : trade.receiverApplied}
           />
         </div>
+      )}
+
+      {trade.isVirtual && (
+        <VirtualTradeActions tradeId={trade.id} />
       )}
     </div>
   );
