@@ -25,6 +25,7 @@ export function ImportedComparison({ collections }: Props) {
   const [selectedId, setSelectedId] = useState<string>(collections[0]?.id ?? "");
   const [showForm, setShowForm] = useState(collections.length === 0);
   const [name, setName] = useState("");
+  const [contactUrl, setContactUrl] = useState("");
   const [duplicates, setDuplicates] = useState("");
   const [missing, setMissing] = useState("");
   const [give, setGive] = useState<Set<string>>(new Set());
@@ -48,12 +49,13 @@ export function ImportedComparison({ collections }: Props) {
       return;
     }
     startTransition(async () => {
-      const res = await createVirtualCollection({ name, duplicates, missing });
+      const res = await createVirtualCollection({ name, contactUrl: contactUrl || undefined, duplicates, missing });
       if (!res.success) {
         setFeedback({ type: "error", message: res.error });
         return;
       }
       setName("");
+      setContactUrl("");
       setDuplicates("");
       setMissing("");
       setShowForm(false);
@@ -169,6 +171,16 @@ export function ImportedComparison({ collections }: Props) {
               onChange={(e) => setName(e.target.value)}
               maxLength={60}
               placeholder="e.g. Tom from work"
+              className="w-full bg-panini-navy border border-panini-blue/50 rounded-lg px-3 py-2 text-panini-white text-sm focus:outline-none focus:border-panini-gold"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-panini-white font-medium text-sm">Contact / Listing URL <span className="text-panini-gray font-normal">(optional)</span></label>
+            <input
+              type="url"
+              value={contactUrl}
+              onChange={(e) => setContactUrl(e.target.value)}
+              placeholder="https://www.kleinanzeigen.de/…"
               className="w-full bg-panini-navy border border-panini-blue/50 rounded-lg px-3 py-2 text-panini-white text-sm focus:outline-none focus:border-panini-gold"
             />
           </div>
