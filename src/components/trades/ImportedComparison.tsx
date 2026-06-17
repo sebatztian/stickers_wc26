@@ -9,7 +9,7 @@ import {
   deleteVirtualCollection,
   saveVirtualTrade,
 } from "@/lib/actions/virtual";
-import { compareStickers } from "@/lib/utils";
+import { compareStickers, formatTradeText } from "@/lib/utils";
 import type { VirtualCollectionWithMatches } from "@/lib/queries/trades";
 import type { Sticker } from "@/generated/prisma/client";
 
@@ -102,20 +102,11 @@ export function ImportedComparison({ collections }: Props) {
     if (!selected) return;
     const giveItems = selected.iCanGiveThem.filter((i) => give.has(i.sticker.id));
     const receiveItems = selected.theyCanGiveMe.filter((i) => receive.has(i.sticker.id));
-
-    function formatId(id: string) {
-      // Insert space between letters and digits: "MEX1" → "MEX 1"
-      return id.replace(/^([A-Z]+)(\d+)$/, "$1 $2");
-    }
-
-    const lines: string[] = [];
-    lines.push(`I offer (${giveItems.length} Sticker${giveItems.length !== 1 ? "s" : ""}):`);
-    lines.push(giveItems.map((i) => formatId(i.sticker.id)).join(", ") || "—");
-    lines.push("");
-    lines.push(`I want (${receiveItems.length} Sticker${receiveItems.length !== 1 ? "s" : ""}):`);
-    lines.push(receiveItems.map((i) => formatId(i.sticker.id)).join(", ") || "—");
-
-    navigator.clipboard.writeText(lines.join("\n")).then(() => {
+    const text = formatTradeText([
+      { title: "I offer", ids: giveItems.map((i) => i.sticker.id) },
+      { title: "I want", ids: receiveItems.map((i) => i.sticker.id) },
+    ]);
+    navigator.clipboard.writeText(text).then(() => {
       setFeedback({ type: "success", message: "Copied to clipboard!" });
     });
   }
