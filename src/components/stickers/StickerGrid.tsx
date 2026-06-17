@@ -8,7 +8,7 @@ import { QuickAddByCode } from "./QuickAddByCode";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { setOwned } from "@/lib/actions/collection";
 import { COUNTRY_FLAGS, COUNTRY_NAMES } from "@/lib/constants";
-import { compareStickers } from "@/lib/utils";
+import { compareStickers, formatTradeText } from "@/lib/utils";
 import type { Sticker, UserSticker } from "@/generated/prisma/client";
 
 interface Props {
@@ -107,6 +107,20 @@ export function StickerGrid({ stickers, initialUserStickers }: Props) {
   }
 
   const totalOwned = stickers.filter((s) => (userStickers[s.id]?.ownedQty ?? 0) > 0).length;
+  const [copyLabel, setCopyLabel] = useState("Copy my stickers");
+
+  function handleCopyCollection() {
+    const duplicates = stickers.filter((s) => (userStickers[s.id]?.ownedQty ?? 0) > 1);
+    const missing = stickers.filter((s) => (userStickers[s.id]?.ownedQty ?? 0) === 0);
+    const text = formatTradeText([
+      { title: "Duplicates", ids: duplicates.map((s) => s.id) },
+      { title: "Missing", ids: missing.map((s) => s.id) },
+    ]);
+    navigator.clipboard.writeText(text).then(() => {
+      setCopyLabel("Copied!");
+      setTimeout(() => setCopyLabel("Copy my stickers"), 2000);
+    });
+  }
 
   // Group by country code so both card and quick views are organised by team.
   const groupedByCode = useMemo(() => {
@@ -136,6 +150,12 @@ export function StickerGrid({ stickers, initialUserStickers }: Props) {
         <span className="text-panini-gray text-sm">
           {Math.round((totalOwned / stickers.length) * 100)}%
         </span>
+        <button
+          onClick={handleCopyCollection}
+          className="text-xs text-panini-gray hover:text-panini-white border border-panini-blue/30 hover:border-panini-gold/40 rounded-lg px-3 py-1 transition-colors"
+        >
+          {copyLabel}
+        </button>
       </div>
 
       {/* Quick add by code */}

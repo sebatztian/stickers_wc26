@@ -73,3 +73,23 @@ export function parseStickerIds(text: string): string[] {
 
   return [...seen];
 }
+
+/** Format a sticker ID with a space between code and number: "MEX1" → "MEX 1". */
+export function formatStickerId(id: string): string {
+  return id.replace(/^([A-Z]+)(\d+)$/, "$1 $2");
+}
+
+/**
+ * Build a copyable trade-proposal text block.
+ * Each section is "Title (N Sticker[s]):\nID1, ID2, …"
+ */
+export function formatTradeText(
+  sections: { title: string; ids: string[] }[]
+): string {
+  return sections
+    .map(({ title, ids }) => {
+      const count = ids.length;
+      return `${title} (${count} Sticker${count !== 1 ? "s" : ""}):\n${ids.map(formatStickerId).join(", ") || "—"}`;
+    })
+    .join("\n\n");
+}

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { TradeActions } from "@/components/trades/TradeActions";
 import { TradeApplyButton } from "@/components/trades/TradeApplyButton";
 import { VirtualTradeActions } from "@/components/trades/VirtualTradeActions";
+import { CopyTradeProposal } from "@/components/trades/CopyTradeProposal";
 import { TradeStickerLists } from "@/components/trades/TradeStickerLists";
 import Link from "next/link";
 
@@ -31,9 +32,14 @@ export default async function TradeDetailPage({
     notFound();
   }
 
+  const isInitiator = trade.initiatorId === session!.user.id;
+  // From current user's perspective
+  const myGiveDirection = isInitiator ? "OFFERED" : "REQUESTED";
+  const myReceiveDirection = isInitiator ? "REQUESTED" : "OFFERED";
   const offered = trade.items.filter((i) => i.direction === "OFFERED");
   const requested = trade.items.filter((i) => i.direction === "REQUESTED");
-  const isInitiator = trade.initiatorId === session!.user.id;
+  const myGiveIds = trade.items.filter((i) => i.direction === myGiveDirection).map((i) => i.stickerId);
+  const myReceiveIds = trade.items.filter((i) => i.direction === myReceiveDirection).map((i) => i.stickerId);
   const partner = isInitiator ? trade.receiver : trade.initiator;
   const partnerName = trade.isVirtual
     ? (trade.virtualPartnerName ?? "Imported collection")
@@ -54,9 +60,12 @@ export default async function TradeDetailPage({
             {new Date(trade.createdAt).toLocaleDateString()}
           </p>
         </div>
-        <Badge variant={trade.status.toLowerCase() as "pending" | "accepted" | "rejected" | "cancelled"}>
-          {trade.status}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <CopyTradeProposal offerIds={myGiveIds} requestIds={myReceiveIds} />
+          <Badge variant={trade.status.toLowerCase() as "pending" | "accepted" | "rejected" | "cancelled"}>
+            {trade.status}
+          </Badge>
+        </div>
       </div>
 
       {trade.virtualContactUrl && (
