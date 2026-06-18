@@ -69,6 +69,8 @@ model Trade {
   virtualContactUrl  String?
   initiatorApplied   Boolean     @default(false)
   receiverApplied    Boolean     @default(false)
+  initiatorDealDone  Boolean     @default(false)
+  receiverDealDone   Boolean     @default(false)
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
   initiator        User        @relation("TradeInitiator", fields: [initiatorId], references: [id])

@@ -7,6 +7,7 @@ import { TradeActions } from "@/components/trades/TradeActions";
 import { TradeApplyButton } from "@/components/trades/TradeApplyButton";
 import { VirtualTradeActions } from "@/components/trades/VirtualTradeActions";
 import { CopyTradeProposal } from "@/components/trades/CopyTradeProposal";
+import { DealDoneButton } from "@/components/trades/DealDoneButton";
 import { TradeStickerLists } from "@/components/trades/TradeStickerLists";
 import Link from "next/link";
 
@@ -116,6 +117,15 @@ export default async function TradeDetailPage({
           />
         </div>
       )}
+
+      <DealDoneButton
+        tradeId={trade.id}
+        isVirtual={trade.isVirtual}
+        isInitiator={isInitiator}
+        initiatorDealDone={trade.initiatorDealDone}
+        receiverDealDone={trade.receiverDealDone}
+        partnerName={partnerName}
+      />
 
       {trade.isVirtual && (
         <VirtualTradeActions tradeId={trade.id} />
