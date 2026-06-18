@@ -144,6 +144,25 @@ export async function applyTradeToCollection(tradeId: string) {
   return { success: true as const, warnings };
 }
 
+export async function markDealDone(tradeId: string, done: boolean) {
+  const session = await requireSession();
+  const trade = await prisma.trade.findUnique({ where: { id: tradeId } });
+  if (!trade) return { success: false as const, error: "Trade not found" };
+
+  const isInitiator = trade.initiatorId === session.user.id;
+  // For virtual self-trades the user is both initiator and receiver; treat as initiator.
+  const isReceiver = !trade.isVirtual && trade.receiverId === session.user.id;
+  if (!isInitiator && !isReceiver) return { success: false as const, error: "Not part of this trade" };
+
+  await prisma.trade.update({
+    where: { id: tradeId },
+    data: isInitiator ? { initiatorDealDone: done } : { receiverDealDone: done },
+  });
+
+  revalidatePath(`/trade/${tradeId}`);
+  return { success: true as const };
+}
+
 const RespondSchema = z.object({
   tradeId: z.string().min(1),
   action: z.enum(["accept", "reject", "cancel"]),

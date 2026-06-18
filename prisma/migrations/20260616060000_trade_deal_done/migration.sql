@@ -1,0 +1,2 @@
+ALTER TABLE "trades" ADD COLUMN "initiatorDealDone" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "trades" ADD COLUMN "receiverDealDone" BOOLEAN NOT NULL DEFAULT false;
