@@ -74,7 +74,22 @@ export function parseStickerIds(text: string): string[] {
   return [...seen];
 }
 
-/** Format a sticker ID with a space between code and number: "MEX1" → "MEX 1". */
+/**
+ * Compute the display status for a trade, upgrading to "DEAL DONE" when both
+ * parties have physically confirmed the exchange.
+ * Virtual (self) trades only need the initiator flag.
+ */
+export function getDisplayStatus(trade: {
+  status: string;
+  isVirtual: boolean;
+  initiatorDealDone: boolean;
+  receiverDealDone: boolean;
+}): string {
+  const bothDone = trade.isVirtual
+    ? trade.initiatorDealDone
+    : trade.initiatorDealDone && trade.receiverDealDone;
+  return bothDone ? "DEAL DONE" : trade.status;
+}
 export function formatStickerId(id: string): string {
   return id.replace(/^([A-Z]+)(\d+)$/, "$1 $2");
 }

@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Badge } from "@/components/ui/Badge";
+import { getDisplayStatus } from "@/lib/utils";
 import { TradeActions } from "@/components/trades/TradeActions";
 import { TradeApplyButton } from "@/components/trades/TradeApplyButton";
 import { VirtualTradeActions } from "@/components/trades/VirtualTradeActions";
@@ -63,9 +64,14 @@ export default async function TradeDetailPage({
         </div>
         <div className="flex items-center gap-2">
           <CopyTradeProposal offerIds={myGiveIds} requestIds={myReceiveIds} />
-          <Badge variant={trade.status.toLowerCase() as "pending" | "accepted" | "rejected" | "cancelled"}>
-            {trade.status}
-          </Badge>
+          {(() => {
+            const ds = getDisplayStatus(trade);
+            return (
+              <Badge variant={ds.toLowerCase() as "pending" | "accepted" | "rejected" | "cancelled" | "deal done"}>
+                {ds}
+              </Badge>
+            );
+          })()}
         </div>
       </div>
 
