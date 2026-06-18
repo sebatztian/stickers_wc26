@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { UserPicker } from "./UserPicker";
 import { createTrade } from "@/lib/actions/trades";
 import { Button } from "@/components/ui/Button";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { StickerSelectGrid } from "@/components/stickers/StickerSelectGrid";
+import { compareStickers, type StickerSortMode } from "@/lib/utils";
 import type { Sticker, UserSticker } from "@/generated/prisma/client";
 
 type MySticker = UserSticker & { sticker: Sticker };
@@ -47,6 +49,7 @@ export function TradeCreateWizard({ myStickers, preselectedReceiverId }: Props) 
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [search, setSearch] = useState("");
+  const [sortMode, setSortMode] = useState<StickerSortMode>("album");
   const [offered, setOffered] = useState<SelectedItem[]>([]);
   const [requested, setRequested] = useState<SelectedItem[]>([]);
   const [message, setMessage] = useState("");
@@ -122,8 +125,18 @@ export function TradeCreateWizard({ myStickers, preselectedReceiverId }: Props) 
   const offerSource = showAll ? myDuplicates : matches?.iCanGiveThem ?? [];
   const requestSource = showAll ? matches?.theirOwned ?? [] : matches?.theyCanGiveMe ?? [];
 
-  const offerItems = offerSource.filter((i) => matchesSearch(i.sticker, search));
-  const requestItems = requestSource.filter((i) => matchesSearch(i.sticker, search));
+  const offerItems = useMemo(() =>
+    offerSource
+      .filter((i) => matchesSearch(i.sticker, search))
+      .sort((a, b) => compareStickers(a.sticker, b.sticker, sortMode)),
+    [offerSource, search, sortMode]
+  );
+  const requestItems = useMemo(() =>
+    requestSource
+      .filter((i) => matchesSearch(i.sticker, search))
+      .sort((a, b) => compareStickers(a.sticker, b.sticker, sortMode)),
+    [requestSource, search, sortMode]
+  );
 
   const offeredIds = useMemo(() => new Set(offered.map((i) => i.stickerId)), [offered]);
   const requestedIds = useMemo(() => new Set(requested.map((i) => i.stickerId)), [requested]);
@@ -143,7 +156,7 @@ export function TradeCreateWizard({ myStickers, preselectedReceiverId }: Props) 
         </div>
       )}
 
-      {/* Controls: search + show-all toggle */}
+      {/* Controls: search + show-all toggle + sort */}
       {receiverId && (
         <div className="flex items-center gap-3 flex-wrap">
           <input
@@ -162,6 +175,14 @@ export function TradeCreateWizard({ myStickers, preselectedReceiverId }: Props) 
             />
             Show all
           </label>
+          <SegmentedControl
+            options={[
+              { value: "album", label: "Album" },
+              { value: "alpha", label: "A–Z" },
+            ]}
+            value={sortMode}
+            onChange={setSortMode}
+          />
         </div>
       )}
       {receiverId && !showAll && (
