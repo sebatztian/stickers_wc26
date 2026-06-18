@@ -64,6 +64,43 @@ export async function createVirtualCollection(input: unknown) {
   };
 }
 
+const UpdateVirtualSchema = CreateVirtualSchema.extend({
+  id: z.string().min(1),
+});
+
+export async function updateVirtualCollection(input: unknown) {
+  const session = await requireSession();
+  const parsed = UpdateVirtualSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false as const, error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  // Verify ownership before updating
+  const existing = await prisma.virtualCollection.findUnique({ where: { id: parsed.data.id } });
+  if (!existing || existing.ownerId !== session.user.id) {
+    return { success: false as const, error: "Collection not found" };
+  }
+
+  const dupes = await resolveIds(parseStickerIds(parsed.data.duplicates));
+  const missing = await resolveIds(parseStickerIds(parsed.data.missing));
+
+  await prisma.virtualCollection.update({
+    where: { id: parsed.data.id },
+    data: {
+      name: parsed.data.name,
+      contactUrl: parsed.data.contactUrl || null,
+      duplicates: dupes.valid,
+      missing: missing.valid,
+    },
+  });
+
+  revalidatePath("/trade/import");
+  return {
+    success: true as const,
+    unknown: [...new Set([...dupes.unknown, ...missing.unknown])],
+  };
+}
+
 export async function deleteVirtualCollection(id: string) {
   const session = await requireSession();
   // deleteMany scoped by owner so a user can only ever remove their own.

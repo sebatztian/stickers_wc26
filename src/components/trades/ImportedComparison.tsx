@@ -6,10 +6,11 @@ import { StickerSelectGrid } from "@/components/stickers/StickerSelectGrid";
 import { Button } from "@/components/ui/Button";
 import {
   createVirtualCollection,
+  updateVirtualCollection,
   deleteVirtualCollection,
   saveVirtualTrade,
 } from "@/lib/actions/virtual";
-import { compareStickers, formatTradeText } from "@/lib/utils";
+import { compareStickers, formatTradeText, idsToGroupedText } from "@/lib/utils";
 import type { VirtualCollectionWithMatches } from "@/lib/queries/trades";
 import type { Sticker } from "@/generated/prisma/client";
 
@@ -18,12 +19,13 @@ interface Props {
 }
 
 type Feedback = { type: "success" | "error"; message: string } | null;
+type FormMode = { type: "create" } | { type: "edit"; id: string } | null;
 
 export function ImportedComparison({ collections }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [selectedId, setSelectedId] = useState<string>(collections[0]?.id ?? "");
-  const [showForm, setShowForm] = useState(collections.length === 0);
+  const [formMode, setFormMode] = useState<FormMode>(collections.length === 0 ? { type: "create" } : null);
   const [name, setName] = useState("");
   const [contactUrl, setContactUrl] = useState("");
   const [duplicates, setDuplicates] = useState("");
@@ -34,6 +36,29 @@ export function ImportedComparison({ collections }: Props) {
 
   const selected = collections.find((c) => c.id === selectedId) ?? null;
 
+  function openCreate() {
+    setName("");
+    setContactUrl("");
+    setDuplicates("");
+    setMissing("");
+    setFormMode({ type: "create" });
+    setFeedback(null);
+  }
+
+  function openEdit(c: VirtualCollectionWithMatches) {
+    setName(c.name);
+    setContactUrl(c.contactUrl ?? "");
+    setDuplicates(idsToGroupedText(c.duplicates));
+    setMissing(idsToGroupedText(c.missing));
+    setFormMode({ type: "edit", id: c.id });
+    setFeedback(null);
+  }
+
+  function closeForm() {
+    setFormMode(null);
+    setFeedback(null);
+  }
+
   function toggle(setter: typeof setGive, id: string) {
     setter((prev) => {
       const next = new Set(prev);
@@ -43,27 +68,32 @@ export function ImportedComparison({ collections }: Props) {
     });
   }
 
-  function handleCreate() {
+  function handleSubmitForm() {
     if (!name.trim()) {
       setFeedback({ type: "error", message: "Name is required" });
       return;
     }
     startTransition(async () => {
-      const res = await createVirtualCollection({ name, contactUrl: contactUrl || undefined, duplicates, missing });
+      const payload = { name, contactUrl: contactUrl || undefined, duplicates, missing };
+      const res = formMode?.type === "edit"
+        ? await updateVirtualCollection({ ...payload, id: formMode.id })
+        : await createVirtualCollection(payload);
+
       if (!res.success) {
         setFeedback({ type: "error", message: res.error });
         return;
       }
-      setName("");
-      setContactUrl("");
-      setDuplicates("");
-      setMissing("");
-      setShowForm(false);
-      setSelectedId(res.data.id);
+      const savedId = formMode?.type === "edit"
+        ? formMode.id
+        : (res as { success: true; data: { id: string }; unknown: string[] }).data.id;
+      setFormMode(null);
+      setSelectedId(savedId);
+      setGive(new Set());
+      setReceive(new Set());
       setFeedback(
         res.unknown.length > 0
-          ? { type: "error", message: `Added — but ignored unknown codes: ${res.unknown.join(", ")}` }
-          : { type: "success", message: "Imported collection saved." }
+          ? { type: "error", message: `Saved — but ignored unknown codes: ${res.unknown.join(", ")}` }
+          : { type: "success", message: formMode?.type === "edit" ? "Collection updated." : "Imported collection saved." }
       );
       router.refresh();
     });
@@ -72,7 +102,8 @@ export function ImportedComparison({ collections }: Props) {
   function handleDelete(id: string) {
     startTransition(async () => {
       await deleteVirtualCollection(id);
-      if (selectedId === id) setSelectedId("");
+      if (selectedId === id) setSelectedId(collections.find((c) => c.id !== id)?.id ?? "");
+      if (formMode?.type === "edit" && formMode.id === id) setFormMode(null);
       setGive(new Set());
       setReceive(new Set());
       router.refresh();
@@ -111,21 +142,30 @@ export function ImportedComparison({ collections }: Props) {
     });
   }
 
+  const isEditing = formMode?.type === "edit";
+
   return (
     <div className="space-y-6">
-      {/* Existing imports + add toggle */}
+      {/* Collection pills */}
       <div className="flex items-center gap-2 flex-wrap">
         {collections.map((c) => (
           <div
             key={c.id}
-            className={`flex items-center gap-1.5 rounded-full pl-3 pr-1.5 py-1 text-sm transition-colors ${
+            className={`flex items-center gap-1 rounded-full pl-3 pr-1.5 py-1 text-sm transition-colors ${
               c.id === selectedId
                 ? "bg-panini-gold/20 ring-1 ring-panini-gold/50 text-panini-white"
                 : "bg-panini-blue/20 text-panini-gray hover:text-panini-white"
             }`}
           >
-            <button onClick={() => { setSelectedId(c.id); setGive(new Set()); setReceive(new Set()); }}>
+            <button onClick={() => { setSelectedId(c.id); setGive(new Set()); setReceive(new Set()); setFormMode(null); }}>
               {c.name}
+            </button>
+            <button
+              onClick={() => openEdit(c)}
+              title="Edit"
+              className="w-5 h-5 rounded-full hover:bg-panini-blue/60 text-panini-gray hover:text-panini-white leading-none text-xs"
+            >
+              ✎
             </button>
             <button
               onClick={() => handleDelete(c.id)}
@@ -138,10 +178,10 @@ export function ImportedComparison({ collections }: Props) {
           </div>
         ))}
         <button
-          onClick={() => setShowForm((v) => !v)}
+          onClick={formMode?.type === "create" ? closeForm : openCreate}
           className="rounded-full px-3 py-1 text-sm font-medium bg-panini-blue-mid text-panini-white hover:bg-panini-blue transition-colors"
         >
-          {showForm ? "Close" : "+ Import collection"}
+          {formMode?.type === "create" ? "Close" : "+ Import collection"}
         </button>
       </div>
 
@@ -151,9 +191,19 @@ export function ImportedComparison({ collections }: Props) {
         </p>
       )}
 
-      {/* Add form */}
-      {showForm && (
+      {/* Create / edit form */}
+      {formMode && (
         <div className="bg-panini-blue/10 border border-panini-blue/30 rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-display font-bold text-panini-white text-lg">
+              {isEditing ? "Edit collection" : "Import collection"}
+            </h3>
+            {isEditing && (
+              <button onClick={closeForm} className="text-panini-gray hover:text-panini-white text-sm transition-colors">
+                Cancel
+              </button>
+            )}
+          </div>
           <div className="space-y-1">
             <label className="text-panini-white font-medium text-sm">Name</label>
             <input
@@ -166,7 +216,10 @@ export function ImportedComparison({ collections }: Props) {
             />
           </div>
           <div className="space-y-1">
-            <label className="text-panini-white font-medium text-sm">Contact / Listing URL <span className="text-panini-gray font-normal">(optional)</span></label>
+            <label className="text-panini-white font-medium text-sm">
+              Contact / Listing URL{" "}
+              <span className="text-panini-gray font-normal">(optional)</span>
+            </label>
             <input
               type="url"
               value={contactUrl}
@@ -199,14 +252,14 @@ export function ImportedComparison({ collections }: Props) {
               />
             </div>
           </div>
-          <Button variant="primary" size="md" onClick={handleCreate} disabled={isPending}>
-            {isPending ? "Saving…" : "Save collection"}
+          <Button variant="primary" size="md" onClick={handleSubmitForm} disabled={isPending}>
+            {isPending ? "Saving…" : isEditing ? "Update collection" : "Save collection"}
           </Button>
         </div>
       )}
 
-      {/* Comparison + immediate apply */}
-      {selected && (
+      {/* Comparison */}
+      {selected && !formMode && (
         <>
           <div className="grid md:grid-cols-2 gap-6">
             <SelectColumn
@@ -231,7 +284,11 @@ export function ImportedComparison({ collections }: Props) {
 
           {selected.iCanGiveThem.length === 0 && selected.theyCanGiveMe.length === 0 && (
             <p className="text-center py-8 text-panini-gray">
-              No trades right now. Update your collection or edit this import.
+              No trades right now. Update your collection or{" "}
+              <button onClick={() => openEdit(selected)} className="text-panini-gold hover:underline">
+                edit this import
+              </button>
+              .
             </p>
           )}
 
@@ -255,7 +312,7 @@ export function ImportedComparison({ collections }: Props) {
         </>
       )}
 
-      {!selected && collections.length > 0 && (
+      {!selected && !formMode && collections.length > 0 && (
         <p className="text-panini-gray text-sm">Select an imported collection above to compare.</p>
       )}
     </div>

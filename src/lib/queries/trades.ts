@@ -68,6 +68,7 @@ export async function getTradeMatches(myId: string, theirId: string) {
 export type VirtualCollectionWithMatches = {
   id: string;
   name: string;
+  contactUrl: string | null;
   duplicates: string[];
   missing: string[];
   iCanGiveThem: { sticker: Sticker; ownedQty: number }[];
@@ -110,6 +111,7 @@ export async function getVirtualCollectionsWithMatches(
     return {
       id: vc.id,
       name: vc.name,
+      contactUrl: vc.contactUrl,
       duplicates: vc.duplicates,
       missing: vc.missing,
       iCanGiveThem,
