@@ -80,6 +80,22 @@ export function formatStickerId(id: string): string {
 }
 
 /**
+ * Convert a list of sticker IDs into the grouped text format used in the
+ * import form textareas: ["MEX1","MEX2","GER5"] → "MEX: 1, 2\nGER: 5"
+ */
+export function idsToGroupedText(ids: string[]): string {
+  const groups = new Map<string, string[]>();
+  for (const id of ids) {
+    const m = id.match(/^([A-Z]+)(\d+)$/);
+    if (!m) continue;
+    const arr = groups.get(m[1]) ?? [];
+    arr.push(m[2]);
+    groups.set(m[1], arr);
+  }
+  return [...groups.entries()].map(([code, nums]) => `${code}: ${nums.join(", ")}`).join("\n");
+}
+
+/**
  * Build a copyable trade-proposal text block, grouping stickers by team code.
  * Output per section:
  *   Title (N Stickers):
