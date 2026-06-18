@@ -80,8 +80,11 @@ export function formatStickerId(id: string): string {
 }
 
 /**
- * Build a copyable trade-proposal text block.
- * Each section is "Title (N Sticker[s]):\nID1, ID2, …"
+ * Build a copyable trade-proposal text block, grouping stickers by team code.
+ * Output per section:
+ *   Title (N Stickers):
+ *   MEX: 1, 2, 5
+ *   GER: 4, 8
  */
 export function formatTradeText(
   sections: { title: string; ids: string[] }[]
@@ -89,7 +92,22 @@ export function formatTradeText(
   return sections
     .map(({ title, ids }) => {
       const count = ids.length;
-      return `${title} (${count} Sticker${count !== 1 ? "s" : ""}):\n${ids.map(formatStickerId).join(", ") || "—"}`;
+      const header = `${title} (${count} Sticker${count !== 1 ? "s" : ""}):`;
+      if (count === 0) return `${header}\n—`;
+
+      // Group by team code, preserving album order within each group
+      const groups = new Map<string, string[]>();
+      for (const id of ids) {
+        const match = id.match(/^([A-Z]+)(\d+)$/);
+        if (!match) continue;
+        const [, code, num] = match;
+        const arr = groups.get(code) ?? [];
+        arr.push(num);
+        groups.set(code, arr);
+      }
+      const lines = [...groups.entries()]
+        .map(([code, nums]) => `${code}: ${nums.join(", ")}`);
+      return `${header}\n${lines.join("\n")}`;
     })
     .join("\n\n");
 }
