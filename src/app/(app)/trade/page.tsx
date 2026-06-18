@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getTradesForUser } from "@/lib/queries/trades";
 import { Badge } from "@/components/ui/Badge";
+import { getDisplayStatus } from "@/lib/utils";
 import Link from "next/link";
 
 export default async function TradePage() {
@@ -90,9 +91,14 @@ function TradeSection({
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant={trade.status.toLowerCase() as "pending" | "accepted" | "rejected" | "cancelled"}>
-                  {trade.status}
-                </Badge>
+                {(() => {
+                  const ds = getDisplayStatus(trade);
+                  return (
+                    <Badge variant={ds.toLowerCase() as "pending" | "accepted" | "rejected" | "cancelled" | "deal done"}>
+                      {ds}
+                    </Badge>
+                  );
+                })()}
                 <span className="text-panini-gray text-xs">→</span>
               </div>
             </Link>

@@ -1,5 +1,5 @@
 interface BadgeProps {
-  variant: "foil" | "owned" | "needed" | "duplicate" | "pending" | "accepted" | "rejected" | "cancelled";
+  variant: "foil" | "owned" | "needed" | "duplicate" | "pending" | "accepted" | "rejected" | "cancelled" | "deal done";
   children: React.ReactNode;
   className?: string;
 }
@@ -13,6 +13,7 @@ const VARIANTS = {
   accepted: "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40",
   rejected: "bg-panini-red/20 text-panini-red border border-panini-red/40",
   cancelled: "bg-panini-gray/20 text-panini-gray border border-panini-gray/40",
+  "deal done": "bg-teal-500/20 text-teal-300 border border-teal-500/40",
 };
 
 export function Badge({ variant, children, className = "" }: BadgeProps) {
