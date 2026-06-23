@@ -126,11 +126,9 @@ export default async function TradeDetailPage({
 
       <DealDoneButton
         tradeId={trade.id}
-        isVirtual={trade.isVirtual}
         isInitiator={isInitiator}
         initiatorDealDone={trade.initiatorDealDone}
         receiverDealDone={trade.receiverDealDone}
-        partnerName={partnerName}
       />
 
       {trade.isVirtual && (

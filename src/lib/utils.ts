@@ -33,7 +33,7 @@ export function parseStickerIds(text: string): string[] {
 
   // Strategy 1: "CODE:" or "CODE-" prefix with a list of numbers
   // Find every "LETTERS:" segment boundary
-  const prefixRe = /\b([A-Z]{2,4})\s*[:\-]/g;
+  const prefixRe = /\b([A-Z]{2,4})(?:\s*[:\-]|\s+(?=\d))/g;
   let m: RegExpExecArray | null;
   const segments: { code: string; start: number }[] = [];
   while ((m = prefixRe.exec(upper)) !== null) {
@@ -85,10 +85,8 @@ export function getDisplayStatus(trade: {
   initiatorDealDone: boolean;
   receiverDealDone: boolean;
 }): string {
-  const bothDone = trade.isVirtual
-    ? trade.initiatorDealDone
-    : trade.initiatorDealDone && trade.receiverDealDone;
-  return bothDone ? "DEAL DONE" : trade.status;
+  const myDone = trade.initiatorDealDone || trade.receiverDealDone;
+  return myDone ? "DEAL DONE" : trade.status;
 }
 export function formatStickerId(id: string): string {
   return id.replace(/^([A-Z]+)(\d+)$/, "$1 $2");
