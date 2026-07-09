@@ -123,6 +123,10 @@ const SaveVirtualTradeSchema = z.object({
   virtualCollectionId: z.string().min(1),
   give: z.array(z.string().min(1)),
   receive: z.array(z.string().min(1)),
+  // Stickers picked up from the import on behalf of other registered users.
+  receiveFor: z
+    .array(z.object({ stickerId: z.string().min(1), forUserId: z.string().min(1) }))
+    .default([]),
 });
 
 /**
@@ -135,8 +139,8 @@ export async function saveVirtualTrade(input: unknown) {
   const parsed = SaveVirtualTradeSchema.safeParse(input);
   if (!parsed.success) return { success: false as const, error: "Invalid input" };
 
-  const { virtualCollectionId, give, receive } = parsed.data;
-  if (give.length === 0 && receive.length === 0) {
+  const { virtualCollectionId, give, receive, receiveFor } = parsed.data;
+  if (give.length === 0 && receive.length === 0 && receiveFor.length === 0) {
     return { success: false as const, error: "Select at least one sticker" };
   }
 
@@ -157,6 +161,18 @@ export async function saveVirtualTrade(input: unknown) {
     }
   }
 
+  // Verify beneficiary users exist (and aren't the initiator)
+  const beneficiaryIds = [...new Set(receiveFor.map((r) => r.forUserId))];
+  if (beneficiaryIds.length > 0) {
+    if (beneficiaryIds.includes(userId)) {
+      return { success: false as const, error: "Invalid beneficiary" };
+    }
+    const found = await prisma.user.count({ where: { id: { in: beneficiaryIds } } });
+    if (found !== beneficiaryIds.length) {
+      return { success: false as const, error: "Unknown beneficiary user" };
+    }
+  }
+
   const trade = await prisma.trade.create({
     data: {
       initiatorId: userId,
@@ -169,6 +185,12 @@ export async function saveVirtualTrade(input: unknown) {
         create: [
           ...give.map((stickerId) => ({ stickerId, direction: "OFFERED", quantity: 1 })),
           ...receive.map((stickerId) => ({ stickerId, direction: "REQUESTED", quantity: 1 })),
+          ...receiveFor.map((r) => ({
+            stickerId: r.stickerId,
+            direction: "REQUESTED",
+            quantity: 1,
+            forUserId: r.forUserId,
+          })),
         ],
       },
     },

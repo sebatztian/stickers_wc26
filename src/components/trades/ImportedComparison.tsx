@@ -32,9 +32,30 @@ export function ImportedComparison({ collections }: Props) {
   const [missing, setMissing] = useState("");
   const [give, setGive] = useState<Set<string>>(new Set());
   const [receive, setReceive] = useState<Set<string>>(new Set());
+  // beneficiary userId → selected sticker IDs picked up for that user
+  const [receiveFor, setReceiveFor] = useState<Record<string, Set<string>>>({});
   const [feedback, setFeedback] = useState<Feedback>(null);
 
   const selected = collections.find((c) => c.id === selectedId) ?? null;
+
+  function clearSelection() {
+    setGive(new Set());
+    setReceive(new Set());
+    setReceiveFor({});
+  }
+
+  function toggleFor(userId: string, id: string) {
+    setReceiveFor((prev) => {
+      const next = { ...prev };
+      const set = new Set(next[userId] ?? []);
+      if (set.has(id)) set.delete(id);
+      else set.add(id);
+      next[userId] = set;
+      return next;
+    });
+  }
+
+  const forCount = Object.values(receiveFor).reduce((n, s) => n + s.size, 0);
 
   function openCreate() {
     setName("");
@@ -88,8 +109,7 @@ export function ImportedComparison({ collections }: Props) {
         : (res as { success: true; data: { id: string }; unknown: string[] }).data.id;
       setFormMode(null);
       setSelectedId(savedId);
-      setGive(new Set());
-      setReceive(new Set());
+      clearSelection();
       setFeedback(
         res.unknown.length > 0
           ? { type: "error", message: `Saved — but ignored unknown codes: ${res.unknown.join(", ")}` }
@@ -104,26 +124,28 @@ export function ImportedComparison({ collections }: Props) {
       await deleteVirtualCollection(id);
       if (selectedId === id) setSelectedId(collections.find((c) => c.id !== id)?.id ?? "");
       if (formMode?.type === "edit" && formMode.id === id) setFormMode(null);
-      setGive(new Set());
-      setReceive(new Set());
+      clearSelection();
       router.refresh();
     });
   }
 
   function handleSave() {
-    if (!selected || (give.size === 0 && receive.size === 0)) return;
+    if (!selected || (give.size === 0 && receive.size === 0 && forCount === 0)) return;
+    const receiveForPayload = Object.entries(receiveFor).flatMap(([forUserId, ids]) =>
+      [...ids].map((stickerId) => ({ stickerId, forUserId }))
+    );
     startTransition(async () => {
       const res = await saveVirtualTrade({
         virtualCollectionId: selected.id,
         give: [...give],
         receive: [...receive],
+        receiveFor: receiveForPayload,
       });
       if (!res.success) {
         setFeedback({ type: "error", message: res.error });
         return;
       }
-      setGive(new Set());
-      setReceive(new Set());
+      clearSelection();
       setFeedback({ type: "success", message: "Trade saved — you can apply it from Trade History." });
       router.push(`/trade/${res.data.id}`);
     });
@@ -133,9 +155,16 @@ export function ImportedComparison({ collections }: Props) {
     if (!selected) return;
     const giveItems = selected.iCanGiveThem.filter((i) => give.has(i.sticker.id));
     const receiveItems = selected.theyCanGiveMe.filter((i) => receive.has(i.sticker.id));
+    const forSections = selected.friendPickups
+      .map((p) => ({
+        title: `For ${p.userName}`,
+        ids: p.stickers.filter((i) => receiveFor[p.userId]?.has(i.sticker.id)).map((i) => i.sticker.id),
+      }))
+      .filter((s) => s.ids.length > 0);
     const text = formatTradeText([
       { title: "I offer", ids: giveItems.map((i) => i.sticker.id) },
       { title: "I want", ids: receiveItems.map((i) => i.sticker.id) },
+      ...forSections,
     ]);
     navigator.clipboard.writeText(text).then(() => {
       setFeedback({ type: "success", message: "Copied to clipboard!" });
@@ -157,7 +186,7 @@ export function ImportedComparison({ collections }: Props) {
                 : "bg-panini-blue/20 text-panini-gray hover:text-panini-white"
             }`}
           >
-            <button onClick={() => { setSelectedId(c.id); setGive(new Set()); setReceive(new Set()); setFormMode(null); }}>
+            <button onClick={() => { setSelectedId(c.id); clearSelection(); setFormMode(null); }}>
               {c.name}
             </button>
             <button
@@ -292,11 +321,42 @@ export function ImportedComparison({ collections }: Props) {
             </p>
           )}
 
-          {(give.size > 0 || receive.size > 0) && (
+          {/* Pick up for friends: import duplicates other registered users need */}
+          {selected.friendPickups.length > 0 && (
+            <div className="space-y-3">
+              <div>
+                <h3 className="font-display font-bold text-panini-white text-xl">Pick Up For Friends</h3>
+                <p className="text-panini-gray text-xs">
+                  Extra duplicates from this import that other users still need — grab them to pass on.
+                </p>
+              </div>
+              <div className="grid md:grid-cols-2 gap-6">
+                {selected.friendPickups.map((p) => (
+                  <SelectColumn
+                    key={p.userId}
+                    title={`For ${p.userName}`}
+                    subtitle={`${p.userName} is missing these`}
+                    items={p.stickers}
+                    selectedIds={receiveFor[p.userId] ?? new Set()}
+                    onToggle={(id) => toggleFor(p.userId, id)}
+                    ring="ring-panini-gold"
+                    emptyText="Nothing to pick up"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {(give.size > 0 || receive.size > 0 || forCount > 0) && (
             <div className="flex items-center justify-center gap-3 flex-wrap">
               <span className="text-panini-gray text-sm">
                 Giving <span className="text-emerald-400 font-bold">{give.size}</span> · Receiving{" "}
                 <span className="text-panini-blue-lt font-bold">{receive.size}</span>
+                {forCount > 0 && (
+                  <>
+                    {" "}· For friends <span className="text-panini-gold font-bold">{forCount}</span>
+                  </>
+                )}
               </span>
               <button
                 onClick={handleCopy}

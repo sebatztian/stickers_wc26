@@ -20,6 +20,7 @@ model User {
   initiated    Trade[]       @relation("TradeInitiator")
   received     Trade[]       @relation("TradeReceiver")
   virtualCollections VirtualCollection[]
+  tradeItemsFor      TradeItem[]         @relation("TradeItemBeneficiary")
 
   @@map("users")
 }
@@ -107,8 +108,12 @@ model TradeItem {
   stickerId String
   direction String
   quantity  Int     @default(1)
+  // When set, this sticker is being picked up on behalf of another registered
+  // user (a "middleman" pickup) rather than for the trade initiator themselves.
+  forUserId String?
   trade     Trade   @relation(fields: [tradeId], references: [id], onDelete: Cascade)
   sticker   Sticker @relation(fields: [stickerId], references: [id])
+  forUser   User?   @relation("TradeItemBeneficiary", fields: [forUserId], references: [id])
 
   @@index([tradeId])
   @@map("trade_items")

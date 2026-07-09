@@ -65,6 +65,12 @@ export async function getTradeMatches(myId: string, theirId: string) {
   return { iCanGiveThem, theyCanGiveMe, theirOwned };
 }
 
+export type FriendPickup = {
+  userId: string;
+  userName: string;
+  stickers: { sticker: Sticker; ownedQty: number }[];
+};
+
 export type VirtualCollectionWithMatches = {
   id: string;
   name: string;
@@ -73,6 +79,9 @@ export type VirtualCollectionWithMatches = {
   missing: string[];
   iCanGiveThem: { sticker: Sticker; ownedQty: number }[];
   theyCanGiveMe: { sticker: Sticker; ownedQty: number }[];
+  // Import duplicates that OTHER registered users are missing (and I don't need
+  // myself) — stickers I could pick up from this import on their behalf.
+  friendPickups: FriendPickup[];
 };
 
 /**
@@ -84,17 +93,34 @@ export type VirtualCollectionWithMatches = {
 export async function getVirtualCollectionsWithMatches(
   myId: string
 ): Promise<VirtualCollectionWithMatches[]> {
-  const [collections, myStickers, allStickers] = await Promise.all([
-    prisma.virtualCollection.findMany({
-      where: { ownerId: myId },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.userSticker.findMany({ where: { userId: myId }, include: { sticker: true } }),
-    prisma.sticker.findMany(),
-  ]);
+  const [collections, myStickers, allStickers, otherUsers, otherUserStickers] =
+    await Promise.all([
+      prisma.virtualCollection.findMany({
+        where: { ownerId: myId },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.userSticker.findMany({ where: { userId: myId }, include: { sticker: true } }),
+      prisma.sticker.findMany(),
+      prisma.user.findMany({ where: { id: { not: myId } }, select: { id: true, name: true } }),
+      prisma.userSticker.findMany({
+        where: { userId: { not: myId }, ownedQty: { gt: 0 } },
+        select: { userId: true, stickerId: true },
+      }),
+    ]);
 
   const myOwnedMap = new Map(myStickers.map((s) => [s.stickerId, s.ownedQty]));
   const stickerMap = new Map(allStickers.map((s) => [s.id, s]));
+
+  // userId → set of sticker IDs that user owns (qty > 0)
+  const ownedByUser = new Map<string, Set<string>>();
+  for (const us of otherUserStickers) {
+    let set = ownedByUser.get(us.userId);
+    if (!set) {
+      set = new Set();
+      ownedByUser.set(us.userId, set);
+    }
+    set.add(us.stickerId);
+  }
 
   return collections.map((vc) => {
     const missingSet = new Set(vc.missing);
@@ -102,11 +128,25 @@ export async function getVirtualCollectionsWithMatches(
       .filter((s) => s.ownedQty > 1 && missingSet.has(s.stickerId))
       .map((s) => ({ sticker: s.sticker, ownedQty: s.ownedQty }));
 
-    const theyCanGiveMe = vc.duplicates
-      .filter((id) => (myOwnedMap.get(id) ?? 0) === 0)
+    const dupeStickers = vc.duplicates
       .map((id) => stickerMap.get(id))
-      .filter((s): s is Sticker => Boolean(s))
+      .filter((s): s is Sticker => Boolean(s));
+
+    const theyCanGiveMe = dupeStickers
+      .filter((s) => (myOwnedMap.get(s.id) ?? 0) === 0)
       .map((sticker) => ({ sticker, ownedQty: 1 }));
+
+    // For each other user, the import duplicates they're missing but that I
+    // don't need myself (so they don't overlap with "They Can Give Me").
+    const friendPickups: FriendPickup[] = otherUsers
+      .map((u) => {
+        const owned = ownedByUser.get(u.id) ?? new Set<string>();
+        const stickers = dupeStickers
+          .filter((s) => !owned.has(s.id) && (myOwnedMap.get(s.id) ?? 0) > 0)
+          .map((sticker) => ({ sticker, ownedQty: 1 }));
+        return { userId: u.id, userName: u.name, stickers };
+      })
+      .filter((p) => p.stickers.length > 0);
 
     return {
       id: vc.id,
@@ -116,6 +156,7 @@ export async function getVirtualCollectionsWithMatches(
       missing: vc.missing,
       iCanGiveThem,
       theyCanGiveMe,
+      friendPickups,
     };
   });
 }
