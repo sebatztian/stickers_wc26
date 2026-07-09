@@ -93,7 +93,10 @@ export async function applyTradeToCollection(tradeId: string) {
   const receivingDirection = isInitiator ? "REQUESTED" : "OFFERED";
 
   const giving = trade.items.filter((i) => i.direction === givingDirection);
-  const receiving = trade.items.filter((i) => i.direction === receivingDirection);
+  // Items picked up for another user never touch the applying user's collection.
+  const receiving = trade.items.filter(
+    (i) => i.direction === receivingDirection && !i.forUserId
+  );
 
   const warnings: string[] = [];
 

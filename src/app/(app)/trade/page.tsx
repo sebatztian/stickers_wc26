@@ -63,8 +63,9 @@ function TradeSection({
         {trades.map((trade) => {
           const partner =
             trade.initiatorId === currentUserId ? trade.receiver : trade.initiator;
-          const offered = trade.items.filter((i) => i.direction === "OFFERED");
-          const requested = trade.items.filter((i) => i.direction === "REQUESTED");
+          const offered = trade.items.filter((i) => i.direction === "OFFERED" && !i.forUserId);
+          const requested = trade.items.filter((i) => i.direction === "REQUESTED" && !i.forUserId);
+          const forFriends = trade.items.filter((i) => i.forUserId).length;
 
           const partnerLabel = trade.isVirtual
             ? trade.virtualPartnerName ?? "Imported"
@@ -88,6 +89,9 @@ function TradeSection({
                 </p>
                 <p className="text-panini-gray text-xs mt-0.5">
                   {offered.length} offered · {requested.length} requested
+                  {forFriends > 0 && (
+                    <> · <span className="text-panini-gold">{forFriends} for friends</span></>
+                  )}
                 </p>
               </div>
               <div className="flex items-center gap-2">
