@@ -131,11 +131,19 @@ export default async function TradeDetailPage({
                 key={userId}
                 className="bg-panini-blue/10 border border-panini-gold/30 rounded-xl p-4 space-y-2"
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant="foil">For {name}</Badge>
                   <span className="text-panini-gray text-xs">
                     {items.length} sticker{items.length !== 1 ? "s" : ""}
                   </span>
+                  <Link
+                    href={`/trade/new?receiverId=${userId}&offer=${items
+                      .map((i) => encodeURIComponent(i.stickerId))
+                      .join(",")}`}
+                    className="ml-auto text-xs font-medium bg-panini-gold hover:bg-panini-gold-lt text-panini-navy rounded-lg px-3 py-1 transition-colors"
+                  >
+                    Trade with {name} →
+                  </Link>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {items.map((i) => (

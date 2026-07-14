@@ -16,6 +16,8 @@ type StickerWithQty = { sticker: Sticker; ownedQty: number };
 interface Props {
   myStickers: MySticker[];
   preselectedReceiverId: string;
+  // Stickers to pre-fill on the "I offer" side (e.g. picked up for this friend).
+  preselectedOffer?: Sticker[];
 }
 
 interface SelectedItem {
@@ -41,7 +43,7 @@ function matchesSearch(sticker: Sticker, q: string) {
   );
 }
 
-export function TradeCreateWizard({ myStickers, preselectedReceiverId }: Props) {
+export function TradeCreateWizard({ myStickers, preselectedReceiverId, preselectedOffer = [] }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [receiverId, setReceiverId] = useState(preselectedReceiverId);
@@ -50,7 +52,9 @@ export function TradeCreateWizard({ myStickers, preselectedReceiverId }: Props) 
   const [showAll, setShowAll] = useState(false);
   const [search, setSearch] = useState("");
   const [sortMode, setSortMode] = useState<StickerSortMode>("album");
-  const [offered, setOffered] = useState<SelectedItem[]>([]);
+  const [offered, setOffered] = useState<SelectedItem[]>(
+    preselectedOffer.map((s) => ({ stickerId: s.id, name: s.name, quantity: 1 }))
+  );
   const [requested, setRequested] = useState<SelectedItem[]>([]);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -122,8 +126,22 @@ export function TradeCreateWizard({ myStickers, preselectedReceiverId }: Props) 
   const isGift = offered.length > 0 && requested.length === 0;
   const isWishRequest = offered.length === 0 && requested.length > 0;
 
-  const offerSource = showAll ? myDuplicates : matches?.iCanGiveThem ?? [];
+  const baseOfferSource = showAll ? myDuplicates : matches?.iCanGiveThem ?? [];
   const requestSource = showAll ? matches?.theirOwned ?? [] : matches?.theyCanGiveMe ?? [];
+
+  // Always surface preselected offers (friend pickups) even when they aren't
+  // duplicates, so the user can see and toggle them.
+  const ownedQtyMap = useMemo(
+    () => new Map(myStickers.map((s) => [s.stickerId, s.ownedQty])),
+    [myStickers]
+  );
+  const offerSource = useMemo(() => {
+    const present = new Set(baseOfferSource.map((i) => i.sticker.id));
+    const extras = preselectedOffer
+      .filter((s) => !present.has(s.id))
+      .map((s) => ({ sticker: s, ownedQty: ownedQtyMap.get(s.id) ?? 1 }));
+    return [...extras, ...baseOfferSource];
+  }, [baseOfferSource, preselectedOffer, ownedQtyMap]);
 
   const offerItems = useMemo(() =>
     offerSource
