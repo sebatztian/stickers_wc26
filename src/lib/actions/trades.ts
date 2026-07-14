@@ -93,10 +93,9 @@ export async function applyTradeToCollection(tradeId: string) {
   const receivingDirection = isInitiator ? "REQUESTED" : "OFFERED";
 
   const giving = trade.items.filter((i) => i.direction === givingDirection);
-  // Items picked up for another user never touch the applying user's collection.
-  const receiving = trade.items.filter(
-    (i) => i.direction === receivingDirection && !i.forUserId
-  );
+  // Friend pickups are physically received by the applying user too — they hold
+  // them until they pass them on — so they DO count toward the collection.
+  const receiving = trade.items.filter((i) => i.direction === receivingDirection);
 
   const warnings: string[] = [];
 

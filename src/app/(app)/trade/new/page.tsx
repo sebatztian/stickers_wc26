@@ -6,16 +6,23 @@ import { TradeCreateWizard } from "@/components/trades/TradeCreateWizard";
 export default async function NewTradePage({
   searchParams,
 }: {
-  searchParams: Promise<{ receiverId?: string }>;
+  searchParams: Promise<{ receiverId?: string; offer?: string }>;
 }) {
-  const { receiverId } = await searchParams;
+  const { receiverId, offer } = await searchParams;
   const session = await getServerSession(authOptions);
   const userId = session!.user.id;
 
-  const myStickers = await prisma.userSticker.findMany({
-    where: { userId, ownedQty: { gt: 0 } },
-    include: { sticker: true },
-  });
+  const offerIds = offer ? offer.split(",").map((s) => s.trim()).filter(Boolean) : [];
+
+  const [myStickers, preselectedOffer] = await Promise.all([
+    prisma.userSticker.findMany({
+      where: { userId, ownedQty: { gt: 0 } },
+      include: { sticker: true },
+    }),
+    offerIds.length > 0
+      ? prisma.sticker.findMany({ where: { id: { in: offerIds } } })
+      : Promise.resolve([]),
+  ]);
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -25,6 +32,7 @@ export default async function NewTradePage({
       <TradeCreateWizard
         myStickers={myStickers}
         preselectedReceiverId={receiverId ?? ""}
+        preselectedOffer={preselectedOffer}
       />
     </div>
   );
