@@ -47,6 +47,12 @@ export default async function TradeDetailPage({
   const myReceiveIds = trade.items
     .filter((i) => i.direction === myReceiveDirection && !i.forUserId)
     .map((i) => i.stickerId);
+  // For the copyable proposal, friend pickups are requested from the same
+  // partner too — aggregate them into one "I want" list.
+  const copyRequestIds = [
+    ...myReceiveIds,
+    ...trade.items.filter((i) => i.direction === myReceiveDirection && i.forUserId).map((i) => i.stickerId),
+  ];
 
   // Stickers picked up from this trade on behalf of other users, grouped by user.
   const friendPickups = new Map<string, { name: string; items: typeof trade.items }>();
@@ -77,7 +83,7 @@ export default async function TradeDetailPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <CopyTradeProposal offerIds={myGiveIds} requestIds={myReceiveIds} />
+          <CopyTradeProposal offerIds={myGiveIds} requestIds={copyRequestIds} />
           {(() => {
             const ds = getDisplayStatus(trade);
             return (
