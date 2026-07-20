@@ -155,16 +155,14 @@ export function ImportedComparison({ collections }: Props) {
     if (!selected) return;
     const giveItems = selected.iCanGiveThem.filter((i) => give.has(i.sticker.id));
     const receiveItems = selected.theyCanGiveMe.filter((i) => receive.has(i.sticker.id));
-    const forSections = selected.friendPickups
-      .map((p) => ({
-        title: `For ${p.userName}`,
-        ids: p.stickers.filter((i) => receiveFor[p.userId]?.has(i.sticker.id)).map((i) => i.sticker.id),
-      }))
-      .filter((s) => s.ids.length > 0);
+    // Friend pickups are requested from the same partner — aggregate them into
+    // the single "I want" list rather than splitting per friend.
+    const friendIds = selected.friendPickups.flatMap((p) =>
+      p.stickers.filter((i) => receiveFor[p.userId]?.has(i.sticker.id)).map((i) => i.sticker.id)
+    );
     const text = formatTradeText([
       { title: "I offer", ids: giveItems.map((i) => i.sticker.id) },
-      { title: "I want", ids: receiveItems.map((i) => i.sticker.id) },
-      ...forSections,
+      { title: "I want", ids: [...receiveItems.map((i) => i.sticker.id), ...friendIds] },
     ]);
     navigator.clipboard.writeText(text).then(() => {
       setFeedback({ type: "success", message: "Copied to clipboard!" });
