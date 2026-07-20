@@ -41,12 +41,20 @@ export default async function TradeComparePage() {
             Find sticker matches with your friends
           </p>
         </div>
-        <Link
-          href="/trade/import"
-          className="text-sm font-medium border border-panini-blue/40 text-panini-gray hover:text-panini-white hover:border-panini-gold/40 rounded-lg px-4 py-2 transition-colors"
-        >
-          Compare with imported collection →
-        </Link>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link
+            href="/trade/collectors"
+            className="text-sm font-medium border border-panini-blue/40 text-panini-gray hover:text-panini-white hover:border-panini-gold/40 rounded-lg px-4 py-2 transition-colors"
+          >
+            All collectors&rsquo; lists →
+          </Link>
+          <Link
+            href="/trade/import"
+            className="text-sm font-medium border border-panini-blue/40 text-panini-gray hover:text-panini-white hover:border-panini-gold/40 rounded-lg px-4 py-2 transition-colors"
+          >
+            Compare with imported collection →
+          </Link>
+        </div>
       </div>
 
       <TradeComparison myId={myId} users={ranked} totalStickers={totalStickers} />
